@@ -1,0 +1,15 @@
+main: io.github.expugn.dungeons.App
+name: PartyDungeons
+version: 1.0-SNAPSHOT
+author: S'pugn
+website: https://github.com/Expugn/PartyDungeons
+api-version: 1.17
+softdepend: [Vault]
+commands:
+  spugn:
+    description: Debug command for S'pugn
+    usage: /<command>
+    permission: partydungeons.dev
+  partydungeons:
+    description: Main command for PartyDungeons
+    usage: /<command>
