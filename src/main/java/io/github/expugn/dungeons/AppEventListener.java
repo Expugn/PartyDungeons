@@ -398,14 +398,18 @@ public class AppEventListener implements Listener {
         if (!dungeon.isActive() || dungeon.isCleared()) {
             // DUNGEON ISN'T ACTIVE OR CLEARED AND PLAYER WORLD CHANGED, JUST REMOVE THEM FROM ACTIVE PLAYERS
             // NO PENALTY NEEDED. INFORM ALL CURRENT PARTY MEMBERS TOO
-            activeDungeons.get(dungeonName).removePlayerFromParty(player);
             dungeon.messageParty(String.format("%s%s %shas teleported away and left the party.",
                 ChatColor.GOLD, player.getName(), ChatColor.YELLOW));
 
-            // CHECK IF WE SHOULD RESET THE DUNGEON IF THE DUNGEON HAS BEEN USED
             if (dungeon.isCleared()) {
+                // RESET PLAYER IF THEY TELEPORT AWAY
+                AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
+                activeDungeons.get(dungeonName).removePlayerFromParty(player);
                 dungeon.resetCheck();
+                return;
             }
+
+            activeDungeons.get(dungeonName).removePlayerFromParty(player);
             return;
         }
 
