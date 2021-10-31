@@ -1,6 +1,5 @@
 package io.github.expugn.dungeons;
 
-import java.io.File;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,8 +18,7 @@ public final class App extends JavaPlugin {
         // CREATE PLUGIN DATA FOLDER
         if (!getDataFolder().exists()) {
             getLogger().info("Creating necessary directories!");
-            File scriptsDirectory = new File(getDataFolder(), "scripts");
-            scriptsDirectory.mkdirs();
+            getDataFolder().mkdirs();
         }
 
         // CHECK IF SCRIPT ENGINE EXISTS

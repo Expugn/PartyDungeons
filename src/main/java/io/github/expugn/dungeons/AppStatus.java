@@ -95,6 +95,11 @@ public final class AppStatus {
         activeDungeons = new HashMap<>();
         File mainDirectory = AppUtils.getDungeonDirectory();
         File[] dungeonDirectories = mainDirectory.listFiles(File::isDirectory);
+        if (dungeonDirectories == null) {
+            // NO DUNGEONS FOUND THAT CAN BE LOADED.
+            return;
+        }
+
         for (File dd : dungeonDirectories) {
             activeDungeons.put(dd.getName(), new LoadedDungeon(new Dungeon(dd.getName())));
             DungeonFile df = activeDungeons.get(dd.getName()).getDungeon().getDungeonFile();

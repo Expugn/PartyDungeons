@@ -55,6 +55,7 @@ There are four different ways scripts can be triggered:<br>
 | `Dungeon` | Fires only during specific dungeon events, look at `Dungeon Script Type Scripts` for more information. |
 | `Interact` | Triggers when a player left or right clicks a block. |
 | `Walk` | Triggers when a player walks over the block location. |
+
 **Most script types will and should only be triggered when the player is in a dungeon party.**
 
 ## Dungeon Script Type Scripts
