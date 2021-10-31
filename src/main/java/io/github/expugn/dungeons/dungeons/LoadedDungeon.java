@@ -451,11 +451,6 @@ public class LoadedDungeon {
         return party.get(uuid);
     }
 
-    public void setActive(boolean b) {
-        // this shoudlnt be here, used for debugf
-        active = b;
-    }
-
     /**
      * Show the default version of `/partydungeons status` if a dungeon scripter did not implement a
      * custom version.

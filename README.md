@@ -74,13 +74,18 @@ You can find these scripts in the `PartyDungeons/dungeon/<dungeon_name>/scripts/
 - Performing tasks like teleporting players, placing blocks, or spawning entites requires using `BukkitScheduler`. The script can not perform these tasks directly because scripts run in a seperate thread.
 - When your dungeon is "cleared" you must call `dungeon.clear()` from your script. This will make sure players can safely leave and that the daily clear counter will work.
 - Use `None` type scripts to hold reusable components and load those components with Nashorn's `load()` function.
+- Depending on the script type, they may have different script bindings. Please review the auto generated comment block in your script to see what objects your script most likely has access to.
+
+## Example Scripts
+Example scripts can be found here: <https://github.com/Expugn/PartyDungeonsScripts><br>
+These scripts are intended to be used as an example or reference when writing your own rather than to be plug-and-played.
 
 ## Checkstyle
 This code follows the checkstyle rules from `com/github/ngeor/checkstyle.xml`.<br>
 JAR compliation will not pass until all checkstyle rules are passing.<br>
 If this is found to be annoying:
 - Open `pom.xml`
-- Change `<skipTests>false</skipTests>` to `<skipTests>false</skipTests>`
+- Change `<skipTests>false</skipTests>` to `<skipTests>true</skipTests>`
 
 ## Other Stuff
 **Project** began on October 9, 2021<br>
