@@ -37,11 +37,14 @@ all party members will be teleported when the dungeon begins.
 | `leave` | Leave a dungeon you are a part of. | `leave` |
 | `status` | Get the dungeon's current status.<br>You must be in the party of the dungeon to get this information. | `status` |
 | `createdungeon` | Admin command.<br>Create a new dungeon. | `createdungeon <dungeon_name>` |
+| `createworlddirectory` | Admin command.<br>Create a new world directory and all necessary files. | `createworlddirectory` |
 | `loaddungeon` | Admin command.<br>Load an unloaded dungeon. | `loaddungeon <dungeon_name>` |
 | `unloaddungeon` | Admin command.<br>Unload a loaded dungeon.<br>Players participating in this dungeon will be reset and teleported out. | `unload dungeon <dungeon_name>` |
 | `setspawnposition` | Admin command.<br>Set the SPAWN position of a dungeon.<br>A spawn position is where users will be teleported when leaving. | `setspawnposition <dungeon_name>` |
 | `setstartposition` | Admin command.<br>Set the START position of a dungeon.<br>A start position is where users will be teleported when the dungeon begins. | `setstartposition <dungeon_name>` |
 | `createscript` | Admin command.<br>Create and save a new script file.<br>Script boilerplate code will be included with this method. | `createscript <dungeon_name> <script_type>` |
+| `createworldscript` | Admin command.<br>Create and save a new WORLD script file.<br>Script boilerplate code will be included with this method. | `createscript <script_type>` |
+| `deletescript` | Admin command.<br>Delete a script in the given file path.<br>`plugins/PartyDungeons/<file_path>` will be deleted. Only `.js` files can be deleted with this method. | `deletescript <file_path>` |
 | `settings` | Admin command.<br>Change a dungeon's `max_party` and `daily_clear` values. | `settings <dungeon_name> <setting_type> [value]` |
 | `runscript` | Admin command.<br>Run a script as if you triggered it normally.<br>Try to avoid using this command. | `runscript <dungeon_name> <script_type> <script_name>` |
 | `download` | Admin command.<br>Read from the provided file manifest and bulk download files.<br>All existing files will be overwritten, so don't use this command if you fear overwriting important files. | `download <dungeon_name> <manifest_url>` |
@@ -75,6 +78,13 @@ You can find these scripts in the `PartyDungeons/dungeon/<dungeon_name>/scripts/
 - When your dungeon is "cleared" you must call `dungeon.clear()` from your script. This will make sure players can safely leave and that the daily clear counter will work.
 - Use `None` type scripts to hold reusable components and load those components with Nashorn's `load()` function.
 - Depending on the script type, they may have different script bindings. Please review the auto generated comment block in your script to see what objects your script most likely has access to.
+
+## Dungeon Scripts VS World Scripts
+As of `v1.1`, World Scripts have been added.
+
+World Scripts are scripts that can be triggered by ***anyone that's not in a dungeon party***. *Players in a dungeon instance will not be able to trigger these scripts*. World scripts are to be used if you want the scripting system of `PartyDungeons` to power different non-dungeon instances.
+
+Despite having this feature, **`PartyDungeons` will always be a dungeon instance manager**, so *flexibility of World Scripts may not be up to standards with other scripting plugins*.
 
 ## Example Scripts
 Example scripts can be found here: <https://github.com/Expugn/PartyDungeonsScripts><br>
