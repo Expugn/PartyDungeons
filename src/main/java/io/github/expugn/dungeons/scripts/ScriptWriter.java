@@ -2,16 +2,21 @@ package io.github.expugn.dungeons.scripts;
 
 import io.github.expugn.dungeons.AppConstants;
 import io.github.expugn.dungeons.AppUtils;
+import io.github.expugn.dungeons.worlds.WorldVariables;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Map;
 import javax.script.Bindings;
+import javax.script.SimpleBindings;
+import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
 
 /**
  * Handles creating and writing to new script files.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public class ScriptWriter {
     private String directory;
@@ -132,8 +137,18 @@ public class ScriptWriter {
 
         // SCRIPT BINDINGS
         if (bindings == null) {
-            // USE DEFAULT BINDINGS
-            bindings = scriptType.getBindings();
+            if (directory.indexOf(AppUtils.getWorldDirectory().toString()) >= 0) {
+                // USE WORLD SCRIPT BINDINGS
+                bindings = new SimpleBindings(Map.of(
+                    "player", Player.class,
+                    "sm", ScriptManager.class,
+                    "variables", WorldVariables.class,
+                    "world", World.class
+                ));
+            } else {
+                // USE DEFAULT BINDINGS
+                bindings = scriptType.getBindings();
+            }
         }
         if (bindings.size() > 0) {
             content.append(" *\n");
@@ -167,10 +182,10 @@ public class ScriptWriter {
         // APPEND main()
         if (scriptType.equals(ScriptType.AreaWalk)) {
             // AreaWalk NEEDS TO WORRY ABOUT main() CONTENTS SINCE THEY'RE INVOKED EVERY STEP A USER TAKES IN THE AREA
-            content.append(String.format("%s%s\n%s}\nmain();",
+            content.append(String.format("%s%s%s\n%s}\nmain();",
                 " */\nfunction main() {\n    // WRITE YOUR CODE HERE ; THIS WILL BE CALLED ",
-                "ONLY WHEN A PLAYER ENTERS OR LEAVES THE AREA.\n    // sm.log(\"INFO\", \"%s\");",
-                temp,
+                "ONLY WHEN A PLAYER ENTERS OR LEAVES THE AREA.\n    ",
+                String.format("// sm.log(\"INFO\", \"%s\");", temp),
                 bindings.containsKey("player") ? String.format("    // player.sendMessage(\"%s\");\n", temp) : ""));
         } else {
             // NORMAL main()

@@ -33,6 +33,8 @@ import org.bukkit.inventory.EquipmentSlot;
 
 /**
  * This class handles all EventListening for the PartyDungeons App.
+ * @author S'pugn
+ * @version 0.2
  */
 public class AppEventListener implements Listener {
     /**
@@ -42,28 +44,47 @@ public class AppEventListener implements Listener {
      */
     @EventHandler
     public void onClickBlock(PlayerInteractEvent e) {
-        Player player = e.getPlayer();
-        if (!AppUtils.isPlayerInDungeon(player)) {
-            // PLAYER IS NOT ACTIVELY IN A DUNGEON
-            return;
-        }
-        if (!AppUtils.getPlayerState(player).equals(PlayerState.Alive)) {
-            // PLAYER IS NOT ALIVE IN THEIR DUNGEON PARTY
-            return;
-        }
         if (e.getHand() == EquipmentSlot.OFF_HAND) {
             // IGNORE OFF HAND, EVENT WILL FIRE TWICE OTHERWISE
             return;
         }
-        if (e.getAction() == Action.LEFT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            Block clickedBlock = e.getClickedBlock();
-            String scriptName = AppUtils.getBlockString(clickedBlock);
-            // e.getPlayer().sendMessage(String.format("onClickBlock, scripts/interact/%s.js", scriptName));
 
-            // CANCEL EVENT IF A SCRIPT HAS SUCCESSFULLY TRIGGERED
-            // THIS WILL STOP BLOCKS FROM BEING PLACED
-            e.setCancelled(AppStatus.getScriptManager().startScript(scriptName, ScriptType.Interact, player));
+        if (e.getAction() != Action.LEFT_CLICK_BLOCK && e.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            // NOT A LEFT CLICK OR RIGHT CLICK INTERACT EVENT
+            return;
         }
+
+        Player player = e.getPlayer();
+        Block clickedBlock = e.getClickedBlock();
+        String scriptName = AppUtils.getBlockString(clickedBlock);
+
+        if (!AppUtils.isPlayerInDungeon(player)) {
+            // PLAYER IS NOT ACTIVELY IN A DUNGEON
+            // CHECK FOR WORLD INTERACT SCRIPTS
+            if (!AppUtils.getWorldScriptDirectory(player.getWorld(), ScriptType.None).exists()) {
+                // WORLD SCRIPT DIRECTORY PROBABLY DOESN'T EXIST (INTERACT SCRIPTS WON'T EXIST), SO STOP HERE
+                return;
+            }
+
+            if (!AppUtils.getWorldScript(player.getWorld(), ScriptType.Interact, scriptName).exists()) {
+                // WORLD SCRIPT DOESN'T EXIST
+                return;
+            }
+
+            // SCRIPT EXISTS, RUN
+            e.setCancelled(AppStatus.getScriptManager().startScript(scriptName, ScriptType.Interact, player));
+            return;
+        }
+
+        if (!AppUtils.getPlayerState(player).equals(PlayerState.Alive)) {
+            // PLAYER IS NOT ALIVE IN THEIR DUNGEON PARTY
+            return;
+        }
+
+        // RUN DUNGEON SCRIPT
+        // CANCEL EVENT IF A SCRIPT HAS SUCCESSFULLY TRIGGERED
+        // THIS WILL STOP BLOCKS FROM BEING PLACED
+        e.setCancelled(AppStatus.getScriptManager().startScript(scriptName, ScriptType.Interact, player));
     }
 
     /**
@@ -123,107 +144,149 @@ public class AppEventListener implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent e) {
         Player player = e.getPlayer();
-        if (!AppUtils.isPlayerInDungeon(player)) {
-            // PLAYER IS NOT ACTIVELY IN A DUNGEON
-            return;
-        }
-        if (!AppUtils.getPlayerState(player).equals(PlayerState.Alive)) {
-            // PLAYER IS NOT ALIVE IN THEIR DUNGEON PARTY
-            return;
-        }
         if (e.getTo().getBlockX() == e.getFrom().getBlockX()
             && e.getTo().getBlockY() == e.getFrom().getBlockY()
             && e.getTo().getBlockZ() == e.getFrom().getBlockZ()) {
             // NO PLAYER MOVEMENT
             return;
         }
+        if (!AppUtils.isPlayerInDungeon(player)) {
+            // PLAYER IS NOT ACTIVELY IN A DUNGEON ; POTENTIAL NON-DUNGEON SCRIPT EXISTS?
+            // LOOK FOR SCRIPT IN PartyDungeons/world/<world_name>/<script_type>/<script_name>.js
+            if (!AppUtils.getWorldScriptDirectory(player.getWorld(), ScriptType.None).exists()) {
+                // WORLD SCRIPT DIRECTORY PROBABLY DOESN'T EXIST (WALK/AREAWALK SCRIPTS WON'T EXIST), SO STOP HERE
+                return;
+            }
+            AppStatus.getExecutorService().execute(() -> {
+                // CHECK WORLD WALK SCRIPT
+                String worldWalkScriptName = AppUtils.getWalkScriptName(e.getTo().getBlock());
+                File worldWalkScript = AppUtils.getWorldScript(player.getWorld(), ScriptType.Walk, worldWalkScriptName);
+                if (worldWalkScript.exists()) {
+                    // WORLD WALK SCRIPT EXISTS, RUN IT
+                    AppStatus.getScriptManager().startScript(worldWalkScriptName, ScriptType.Walk, e.getPlayer());
+                }
 
-        Map<UUID, String> activePlayers = AppStatus.getActivePlayers();
-        Map<String, LoadedDungeon> activeDungeons = AppStatus.getActiveDungeons();
-        String dungeonName = AppUtils.getPlayerDungeon(player);
-        UUID uuid = player.getUniqueId();
-        if (!activeDungeons.containsKey(dungeonName)) {
-            // PLAYER IS A PART OF AN UNLOADED DUNGEON FOR SOME REASON
-            activePlayers.remove(uuid);
+                // CHECK WORLD AREA SCRIPT
+                File worldAreaWalkScripts = AppUtils.getWorldScriptDirectory(player.getWorld(), ScriptType.AreaWalk);
+                if (!worldAreaWalkScripts.exists()) {
+                    return;
+                }
+                try (Stream<Path> paths = Files.walk(worldAreaWalkScripts.toPath())) {
+                    paths.filter(Files::isRegularFile)
+                        .forEach(filePath -> {
+                            String fileName = filePath.getFileName().toString();
+                            String areaString = fileName.substring(0, fileName.lastIndexOf("."));
+                            String[][] splitAreaString = AppUtils.splitAreaString(areaString);
+                            boolean playerPreviouslyInArea = AppUtils.isInsideArea(splitAreaString[0],
+                                splitAreaString[1], e.getFrom());
+                            boolean playerCurrentlyInArea = AppUtils.isInsideArea(splitAreaString[0],
+                                splitAreaString[1], e.getTo());
+                            if ((!playerPreviouslyInArea && playerCurrentlyInArea) || (playerPreviouslyInArea
+                                && !playerCurrentlyInArea)) {
+
+                                // PLAYER ENTERED OR EXITED AREA
+                                AppStatus.getScriptManager().startScript(areaString, ScriptType.AreaWalk, e.getPlayer(),
+                                    (!playerPreviouslyInArea && playerCurrentlyInArea) ? "_enter" : "_exit");
+                            }
+                        });
+                } catch (IOException io) {
+                    io.printStackTrace();
+                }
+            });
             return;
         }
+        if (!AppUtils.getPlayerState(player).equals(PlayerState.Alive)) {
+            // PLAYER IS NOT ALIVE IN THEIR DUNGEON PARTY
+            return;
+        }
+        AppStatus.getExecutorService().execute(() -> {
+            Map<UUID, String> activePlayers = AppStatus.getActivePlayers();
+            Map<String, LoadedDungeon> activeDungeons = AppStatus.getActiveDungeons();
+            String dungeonName = AppUtils.getPlayerDungeon(player);
+            UUID uuid = player.getUniqueId();
+            if (!activeDungeons.containsKey(dungeonName)) {
+                // PLAYER IS A PART OF AN UNLOADED DUNGEON FOR SOME REASON
+                activePlayers.remove(uuid);
+                return;
+            }
+            LoadedDungeon dungeon = activeDungeons.get(dungeonName);
+            if (!AppUtils.isInsideDungeonArea(dungeon, e.getTo())) {
+                // PLAYER MOVED OUTSIDE THE DUNGEON THEY'RE A PART OF
+                if (dungeon.isCleared()) {
+                    // DUNGEON IS CLEARED AND PLAYER MOVED OUT OF BOUNDS, JUST REMOVE THEM FROM ACTIVE PLAYERS,
+                    // NO PENALTY NEEDED. INFORM ALL CURRENT PARTY MEMBERS TOO.
+                    dungeon.messageParty(
+                        String.format("%s%s %shas walked out of dungeon boundaries and left the party.",
+                        ChatColor.GOLD, player.getName(), ChatColor.YELLOW));
+                    AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
+                    activeDungeons.get(dungeonName).removePlayerFromParty(player);
+                    dungeon.resetCheck();
+                    return;
+                }
+                if (!dungeon.isActive()) {
+                    // DUNGEON ISN'T ACTIVE AND PLAYER MOVED OUT OF BOUNDS, JUST REMOVE THEM FROM ACTIVE PLAYERS
+                    // NO PENALTY NEEDED. INFORM ALL CURRENT PARTY MEMBERS TOO.
+                    dungeon.messageParty(
+                        String.format("%s%s %shas walked out of dungeon boundaries and left the party.",
+                        ChatColor.GOLD, player.getName(), ChatColor.YELLOW));
+                    activeDungeons.get(dungeonName).removePlayerFromParty(player);
+                    return;
+                }
+                // PLAYER IS ALIVE IN A ACTIVE DUNGEON PARTY THAT HASN'T BEEN CLEARED YET
+                // EFFECTIVELY THE SAME AS LEAVING
+                dungeon.messageParty(
+                    String.format("%s%s %shas walked out of dungeon boundaries and abandoned the party.",
+                    ChatColor.GOLD, player.getName(), ChatColor.RED));
 
-        LoadedDungeon dungeon = activeDungeons.get(dungeonName);
-        if (!AppUtils.isInsideDungeonArea(dungeon, e.getTo())) {
-            // PLAYER MOVED OUTSIDE THE DUNGEON THEY'RE A PART OF
-            if (dungeon.isCleared()) {
-                // DUNGEON IS CLEARED AND PLAYER MOVED OUT OF BOUNDS, JUST REMOVE THEM FROM ACTIVE PLAYERS,
-                // NO PENALTY NEEDED. INFORM ALL CURRENT PARTY MEMBERS TOO.
-                dungeon.messageParty(String.format("%s%s %shas walked out of dungeon boundaries and left the party.",
-                    ChatColor.GOLD, player.getName(), ChatColor.YELLOW));
+                // RUN DUNGEON SPECIFIC RESET SCRIPTS HERE (RESET HEALTH CHANGES, POTION EFFECTS, ETC)
                 AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
-                activeDungeons.get(dungeonName).removePlayerFromParty(player);
+
+                // MODIFY PLAYER TYPE IN DUNGEON PARTY TO BE "QUITTER"
+                dungeon.modifyPlayerState(player, PlayerState.Quitter);
+
+                // REMOVE THEM FROM activePlayers
+                AppStatus.getActivePlayers().remove(player.getUniqueId());
+
+                // CHECK IF WE SHOULD RESET THE DUNGEON
                 dungeon.resetCheck();
                 return;
             }
-            if (!dungeon.isActive()) {
-                // DUNGEON ISN'T ACTIVE AND PLAYER MOVED OUT OF BOUNDS, JUST REMOVE THEM FROM ACTIVE PLAYERS
-                // NO PENALTY NEEDED. INFORM ALL CURRENT PARTY MEMBERS TOO.
-                dungeon.messageParty(String.format("%s%s %shas walked out of dungeon boundaries and left the party.",
-                    ChatColor.GOLD, player.getName(), ChatColor.YELLOW));
-                activeDungeons.get(dungeonName).removePlayerFromParty(player);
-                return;
+
+            // PLAYER SHOULD BE ABLE TO RUN SCRIPTS ; TRIGGER WALK SCRIPT
+            // DOING AN ADDITIONAL FILE CHECK BECAUSE IT HAD FALSE POSITIVE TRIGGERS FOR SOME REASON
+            String walkScriptName = AppUtils.getWalkScriptName(e.getTo().getBlock());
+            if (new File(String.format("%s/%s%s", AppUtils.getDungeonScriptDirectory(dungeonName, ScriptType.Walk),
+                walkScriptName, AppConstants.SCRIPT_ENGINE_EXTENSION)).exists()) {
+                AppStatus.getScriptManager().startScript(walkScriptName, ScriptType.Walk, e.getPlayer());
             }
 
-            // PLAYER IS ALIVE IN A ACTIVE DUNGEON PARTY THAT HASN'T BEEN CLEARED YET
-            // EFFECTIVELY THE SAME AS LEAVING
-            dungeon.messageParty(String.format("%s%s %shas walked out of dungeon boundaries and abandoned the party.",
-                ChatColor.GOLD, player.getName(), ChatColor.RED));
+            // TRIGGER AREAWALK SCRIPT
+            File areaWalkScripts = AppUtils.getDungeonScriptDirectory(dungeonName, ScriptType.AreaWalk);
+            if (!areaWalkScripts.exists()) {
+                return;
+            }
+            try (Stream<Path> paths = Files.walk(areaWalkScripts.toPath())) {
+                paths.filter(Files::isRegularFile)
+                    .forEach(filePath -> {
+                        String fileName = filePath.getFileName().toString();
+                        String areaString = fileName.substring(0, fileName.lastIndexOf("."));
+                        String[][] splitAreaString = AppUtils.splitAreaString(areaString);
+                        boolean playerPreviouslyInArea = AppUtils.isInsideArea(splitAreaString[0], splitAreaString[1],
+                            e.getFrom());
+                        boolean playerCurrentlyInArea = AppUtils.isInsideArea(splitAreaString[0], splitAreaString[1],
+                            e.getTo());
+                        if ((!playerPreviouslyInArea && playerCurrentlyInArea) || (playerPreviouslyInArea
+                            && !playerCurrentlyInArea)) {
 
-            // RUN DUNGEON SPECIFIC RESET SCRIPTS HERE (RESET HEALTH CHANGES, POTION EFFECTS, ETC)
-            AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
-
-            // MODIFY PLAYER TYPE IN DUNGEON PARTY TO BE "QUITTER"
-            dungeon.modifyPlayerState(player, PlayerState.Quitter);
-
-            // REMOVE THEM FROM activePlayers
-            AppStatus.getActivePlayers().remove(player.getUniqueId());
-
-            // CHECK IF WE SHOULD RESET THE DUNGEON
-            dungeon.resetCheck();
-            return;
-        }
-
-        // PLAYER SHOULD BE ABLE TO RUN SCRIPTS
-
-        // TRIGGER WALK SCRIPT
-        // DOING AN ADDITIONAL FILE CHECK BECAUSE IT HAD FALSE POSITIVE TRIGGERS FOR SOME REASON
-        String walkScriptName = AppUtils.getWalkScriptName(e.getTo().getBlock());
-        if (new File(String.format("%s/%s%s", AppUtils.getDungeonScriptDirectory(dungeonName, ScriptType.Walk),
-            walkScriptName, AppConstants.SCRIPT_ENGINE_EXTENSION)).exists()) {
-
-            AppStatus.getScriptManager().startScript(walkScriptName, ScriptType.Walk, e.getPlayer());
-        }
-
-        // TRIGGER AREAWALK SCRIPT
-        File areaWalkScripts = AppUtils.getDungeonScriptDirectory(dungeonName, ScriptType.AreaWalk);
-        try (Stream<Path> paths = Files.walk(areaWalkScripts.toPath())) {
-            paths
-                .filter(Files::isRegularFile)
-                .forEach(filePath -> {
-                    String fileName = filePath.getFileName().toString();
-                    String areaString = fileName.substring(0, fileName.lastIndexOf("."));
-                    String[][] splitAreaString = AppUtils.splitAreaString(areaString);
-                    boolean playerPreviouslyInArea = AppUtils.isInsideArea(splitAreaString[0], splitAreaString[1],
-                        e.getFrom());
-                    boolean playerCurrentlyInArea = AppUtils.isInsideArea(splitAreaString[0], splitAreaString[1],
-                        e.getTo());
-                    if ((!playerPreviouslyInArea && playerCurrentlyInArea) || (playerPreviouslyInArea
-                        && !playerCurrentlyInArea)) {
-
-                        // PLAYER ENTERED OR EXITED AREA
-                        AppStatus.getScriptManager().startScript(areaString, ScriptType.AreaWalk, e.getPlayer(),
-                            (!playerPreviouslyInArea && playerCurrentlyInArea) ? "_enter" : "_exit");
-                    }
-                });
-        } catch (IOException io) {
-            io.printStackTrace();
-        }
+                            // PLAYER ENTERED OR EXITED AREA
+                            AppStatus.getScriptManager().startScript(areaString, ScriptType.AreaWalk, e.getPlayer(),
+                                (!playerPreviouslyInArea && playerCurrentlyInArea) ? "_enter" : "_exit");
+                        }
+                    });
+            } catch (IOException io) {
+                io.printStackTrace();
+            }
+        });
     }
 
     /**

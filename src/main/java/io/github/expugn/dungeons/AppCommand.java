@@ -5,6 +5,7 @@ import io.github.expugn.dungeons.dungeons.DungeonScript;
 import io.github.expugn.dungeons.dungeons.LoadedDungeon;
 import io.github.expugn.dungeons.scripts.ScriptType;
 import io.github.expugn.dungeons.scripts.ScriptWriter;
+import io.github.expugn.dungeons.worlds.WorldVariables;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileWriter;
@@ -18,10 +19,10 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -31,7 +32,7 @@ import org.bukkit.entity.Player;
 /**
  * Manages all the commands for the PartyDungeons App.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public class AppCommand implements CommandExecutor {
     /**
@@ -71,6 +72,11 @@ public class AppCommand implements CommandExecutor {
         CREATE_DUNGEON("createdungeon", true),
 
         /**
+         * Create a world script directory.
+         */
+        CREATE_WORLD_DIRECTORY("createworlddirectory", true),
+
+        /**
          * Load an unloaded dungeon.
          * All dungeons are loaded by default..
          */
@@ -99,6 +105,17 @@ public class AppCommand implements CommandExecutor {
          * Also adds additional boilerplate code and comments.
          */
         CREATE_SCRIPT("createscript", true),
+
+        /**
+         * Creates a new world script with the desired type for the player.
+         * Also adds additional boilerplate code and comments.
+         */
+        CREATE_WORLD_SCRIPT("createworldscript", true),
+
+        /**
+         * Delete a script with the given file path.
+         */
+        DELETE_SCRIPT("deletescript", true),
 
         /**
          * Change a dungeon's setting for max_value and daily_clear.
@@ -198,6 +215,9 @@ public class AppCommand implements CommandExecutor {
             case CREATE_DUNGEON: // partydungeons createdungeon <dungeon_name>
                 createDungeon(player, args);
                 break;
+            case CREATE_WORLD_DIRECTORY: // partydungeons createworlddirectory
+                createWorldDirectory(player);
+                break;
             case LOAD_DUNGEON: // partydungeons loaddungeon <dungeon_name>
                 loadDungeon(player, args);
                 break;
@@ -212,6 +232,12 @@ public class AppCommand implements CommandExecutor {
                 break;
             case CREATE_SCRIPT: // partydungeons createscript <dungeon_name> <script_type>
                 createScript(player, args);
+                break;
+            case CREATE_WORLD_SCRIPT: // partydungeons createworldscript <script_type>
+                createWorldScript(player, args);
+                break;
+            case DELETE_SCRIPT: // partydungeons deletescript <file_path>
+                deleteScript(player, args);
                 break;
             case SETTINGS: // partydungeons settings <dungeon_name> <max_party/daily_clear> [value]
                 changeSettings(player, args);
@@ -350,6 +376,45 @@ public class AppCommand implements CommandExecutor {
         player.sendMessage(String.format("%s%s %sdungeon has been created in area %s%s%s!",
             ChatColor.GOLD, dungeonName, ChatColor.GREEN, ChatColor.GOLD, AppUtils.prettyAreaString(result),
             ChatColor.GREEN));
+    }
+
+    private void createWorldDirectory(Player player) {
+        if (!player.hasPermission(AppConstants.ADMIN_PERMISSION)) {
+            // PLAYER HAS INSUFFICIENT PERMISSIONS
+            player.sendMessage("You do not have permission to run this command.");
+            return;
+        }
+
+        // CHECK IF WORLD DIRECTORY EXISTS
+        World world = player.getWorld();
+        File worldDirectory = AppUtils.getWorldDirectory(world);
+        if (worldDirectory.exists()) {
+            player.sendMessage(String.format("%sWorld directory for world %s%s %salready exists.",
+                ChatColor.RED, ChatColor.GOLD, world.getName(), ChatColor.RED));
+            return;
+        }
+
+        worldDirectory.mkdirs();
+
+        // CREATE WORLD SCRIPT DIRECTORIES
+        File scripts = new File(String.format("%s/%s", worldDirectory.getPath(),
+            AppConstants.DUNGEON_SCRIPT_DIRECTORY));
+        scripts.mkdir();
+
+        // CREATE SCRIPT DIRECTORIES BESIDES "dungeon" (BECAUSE WORLDS DONT USE DUNGEON SCRIPTS)
+        Arrays.stream(AppConstants.DUNGEON_SCRIPT_DIRECTORIES).filter(s -> !s.equals("dungeon"))
+            .forEach(sd -> new File(String.format("%s/%s", scripts.getPath(), sd)).mkdir());
+
+        // CREATE WORLD VARIABLE FILE
+        File worldVariableFile = AppUtils.getWorldVariableFile(world);
+        if (!worldVariableFile.exists()) {
+            // CREATE NEW DEFAULT WORLD VARIABLE FILE
+            new WorldVariables(world).saveJSON();
+        }
+
+        // PROCESS COMPLETE
+        player.sendMessage(String.format("%sWorld directory for world %s%s %screated!",
+            ChatColor.GREEN, ChatColor.GOLD, world.getName(), ChatColor.GREEN));
     }
 
     private void loadDungeon(Player player, String[] args) {
@@ -560,6 +625,124 @@ public class AppCommand implements CommandExecutor {
                 ChatColor.GOLD, scriptName, ChatColor.RED, ChatColor.GRAY));
     }
 
+    private void createWorldScript(Player player, String[] args) {
+        if (!player.hasPermission(AppConstants.ADMIN_PERMISSION)) {
+            // PLAYER HAS INSUFFICIENT PERMISSIONS
+            player.sendMessage("You do not have permission to run this command.");
+            return;
+        }
+
+        if (!AppUtils.getWorldDirectory(player.getWorld()).exists()) {
+            // WORLD DIRECTORY DOES NOT EXIST
+            player.sendMessage(String.format("%sWorld directory for world %s%s %sdoes not exist.",
+                ChatColor.RED, ChatColor.GOLD, player.getWorld(), ChatColor.RED));
+            return;
+        }
+
+        if (args.length < 2) { // partydungeons createworldscript <script_type>
+            player.sendMessage(String.format("%sNot enough arguments. %s/partydungeons %s <script_type>",
+                ChatColor.RED, ChatColor.GOLD, args[0]));
+            return;
+        }
+
+        ScriptType scriptType;
+        try {
+            scriptType = ScriptType.valueOf(args[1]);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            // INVALID SCRIPT TYPE GIVEN
+            player.sendMessage(String.format("%sInvalid ScriptType. %s/partydungeons %s <script_type>",
+                ChatColor.RED, ChatColor.GOLD, args[0]));
+            return;
+        }
+
+        // FIGURE OUT TARGET BLOCK (if necessary)
+        Block targetBlock = null;
+        if (scriptType.equals(ScriptType.Interact)
+            || scriptType.equals(ScriptType.Walk)
+            || scriptType.equals(ScriptType.AreaWalk)) {
+            // SCRIPT IS Interact/Walk/AreaWalk TYPE
+            targetBlock = AppUtils.getTargetBlock(player);
+            if (targetBlock == null) {
+                // TARGET COULD NOT BE FOUND
+                player.sendMessage(
+                    String.format("%sTarget block could not be found. Target must be within %s%d %sblocks.",
+                    ChatColor.RED, ChatColor.GOLD, AppConstants.MAX_TARGET_BLOCK_DISTANCE, ChatColor.RED));
+                return;
+            } else if (targetBlock.getType() == Material.AIR) {
+                // TARGET IS AIR
+                player.sendMessage(String.format("%sTarget block can not be %sAIR", ChatColor.RED, ChatColor.GOLD));
+                return;
+            }
+        }
+
+        // FIGURE OUT AUTO-GENERATED SCRIPT NAME
+        String scriptName;
+        if (scriptType.equals(ScriptType.AreaWalk)) {
+            scriptName = AppUtils.playerSelection(player, targetBlock);
+            if (scriptName.isEmpty()) {
+                // SCRIPT NAME CAN'T BE DECIDED YET, PLAYER NEEDS TO SELECT AGAIN
+                player.sendMessage(String.format("%sBlock %s has been selected.\n%s%s",
+                    ChatColor.GOLD, AppUtils.prettyBlockString(targetBlock), ChatColor.YELLOW,
+                    "Please run the command again to select the second block."));
+                return;
+            }
+            // SCRIPT NAME HAS BEEN DECIDED BEYOND THIS POINT
+        } else if (targetBlock != null) {
+            // USE x_y_z FOR FILE NAME
+            scriptName = AppUtils.getBlockString(targetBlock);
+        } else {
+            // USE TIME STAMP FOR FILE NAME
+            scriptName = String.format("script_%d", System.currentTimeMillis());
+        }
+
+        boolean isSuccessful = new ScriptWriter(
+            AppUtils.getWorldScriptDirectory(player.getWorld(), scriptType).toString(), scriptName, player.getName(),
+            scriptType, null, targetBlock).writeFile();
+        player.sendMessage(isSuccessful
+            ? String.format("%sWorld script %s%s %screated!", ChatColor.GREEN, ChatColor.GOLD, scriptName,
+                ChatColor.GREEN)
+            : String.format("%sWorld script %s%s %scould not be created. %s(Does it already exist?)", ChatColor.RED,
+                ChatColor.GOLD, scriptName, ChatColor.RED, ChatColor.GRAY));
+    }
+
+    private void deleteScript(Player player, String[] args) {
+        if (!player.hasPermission(AppConstants.ADMIN_PERMISSION)) {
+            // PLAYER HAS INSUFFICIENT PERMISSIONS
+            player.sendMessage("You do not have permission to run this command.");
+            return;
+        }
+
+        if (args.length < 2) { // partydungeons deletescript <file_path>
+            player.sendMessage(String.format("%sNot enough arguments. %s/partydungeons %s <file_path>",
+                ChatColor.RED, ChatColor.GOLD, args[0]));
+            return;
+        }
+
+        // CHECK IF FILE ENDS WITH .js
+        if (!args[1].endsWith(AppConstants.SCRIPT_ENGINE_EXTENSION)) {
+            player.sendMessage(String.format("%sOnly script files can be deleted. %s/partydungeons %s <file_path>",
+                ChatColor.RED, ChatColor.GOLD, args[0]));
+            return;
+        }
+
+        // CHECK IF FILE EXISTS
+        File file = new File(String.format("%s/%s", AppUtils.getPluginDirectory(), args[1]));
+        if (!file.exists()) {
+            player.sendMessage(String.format("%sFile %s%s %sdoes not exist. %s/partydungeons %s <file_path>",
+                ChatColor.RED, ChatColor.GOLD, args[1], ChatColor.RED, ChatColor.GOLD, args[0]));
+            return;
+        }
+
+        try {
+            file.delete();
+            player.sendMessage(String.format("%sScript %s%s %shas been deleted!",
+                ChatColor.GREEN, ChatColor.GOLD, file, ChatColor.GREEN));
+        } catch (SecurityException e) {
+            player.sendMessage(String.format("%sSecurityException: script %s%s %scould not be deleted.",
+                ChatColor.RED, ChatColor.GOLD, file, ChatColor.RED));
+        }
+    }
+
     private void changeSettings(Player player, String[] args) {
         if (!player.hasPermission(AppConstants.ADMIN_PERMISSION)) {
             // PLAYER HAS INSUFFICIENT PERMISSIONS
@@ -734,7 +917,7 @@ public class AppCommand implements CommandExecutor {
         }
 
         // DO FILE DOWNLOAD IN A DIFFERENT THREAD
-        Executors.newCachedThreadPool().execute(() -> {
+        AppStatus.getExecutorService().execute(() -> {
             while (scanner.hasNext()) {
                 String next = scanner.nextLine();
                 if (next.length() <= 0 || next.startsWith("#")) {

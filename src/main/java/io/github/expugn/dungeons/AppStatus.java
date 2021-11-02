@@ -10,6 +10,8 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 
@@ -17,7 +19,7 @@ import org.bukkit.entity.Player;
  * Manages the current PartyDungeons App's status.
  * These variables are accessible throughout the entire plugin if needed.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public final class AppStatus {
     private static boolean isInitialized;
@@ -27,6 +29,7 @@ public final class AppStatus {
     private static Map<String, LoadedDungeon> activeDungeons;
     private static ResetHandler resetHandler;
     private static final ScriptManager SCRIPT_MANAGER = new ScriptManager();
+    private static final ExecutorService SCRIPT_EXECUTOR_SERVICE = Executors.newCachedThreadPool();
     private static Economy economy;
 
     private AppStatus() {
@@ -71,6 +74,10 @@ public final class AppStatus {
 
     public static ScriptManager getScriptManager() {
         return SCRIPT_MANAGER;
+    }
+
+    public static ExecutorService getExecutorService() {
+        return SCRIPT_EXECUTOR_SERVICE;
     }
 
     public static App getPlugin() {

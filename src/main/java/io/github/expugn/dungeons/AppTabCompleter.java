@@ -15,7 +15,7 @@ import org.bukkit.util.StringUtil;
 /**
  * Handles command tab completion.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public class AppTabCompleter implements TabCompleter {
     private static final int THREE_ARGUMENTS = 3;
@@ -61,6 +61,14 @@ public class AppTabCompleter implements TabCompleter {
                     // LOADED DUNGEON NAMES
                     results.addAll(AppStatus.getActiveDungeons().keySet());
                     break;
+                case CREATE_WORLD_SCRIPT:
+                    // ALL SCRIPT TYPES EXCEPT "dungeon"
+                    results.addAll(Stream.of(ScriptType.values()).filter(e -> !e.equals(ScriptType.Dungeon))
+                        .map(Enum::name).collect(Collectors.toList()));
+                    break;
+                case DELETE_SCRIPT:
+                    results.add("<file_path>");
+                    break;
                 default:
                     break;
             }
@@ -68,8 +76,9 @@ public class AppTabCompleter implements TabCompleter {
             switch (sub) {
                 case CREATE_SCRIPT:
                 case RUN_SCRIPT:
-                    // SCRIPT TYPES
-                    results.addAll(Stream.of(ScriptType.values()).map(Enum::name).collect(Collectors.toList()));
+                    // ALL SCRIPT TYPES EXCEPT "dungeon"
+                    results.addAll(Stream.of(ScriptType.values()).filter(e -> !e.equals(ScriptType.Dungeon))
+                        .map(Enum::name).collect(Collectors.toList()));
                     break;
                 case SETTINGS:
                     results.add("max_party");

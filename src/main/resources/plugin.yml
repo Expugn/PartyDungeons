@@ -1,6 +1,6 @@
 main: io.github.expugn.dungeons.App
 name: PartyDungeons
-version: 1.0-SNAPSHOT
+version: ${project.version}
 author: S'pugn
 website: https://github.com/Expugn/PartyDungeons
 api-version: 1.17

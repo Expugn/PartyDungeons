@@ -14,13 +14,14 @@ import java.util.stream.Stream;
 import org.apache.commons.lang.math.IntRange;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 /**
  * A utility class that contains helpful functions that may or may not be used frequently.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public final class AppUtils {
     private AppUtils() {
@@ -286,6 +287,43 @@ public final class AppUtils {
 
     public static File getDungeonConfigFile(String dungeonName) {
         return new File(String.format("%s/config.json", getDungeonDirectory(dungeonName)));
+    }
+
+    public static File getWorldDirectory() {
+        return new File(String.format("plugins/%s/worlds", AppStatus.getPlugin().getName()));
+    }
+
+    public static File getWorldDirectory(World world) {
+        return getWorldDirectory(world.getName());
+    }
+
+    public static File getWorldDirectory(String worldName) {
+        return new File(String.format("plugins/%s/worlds/%s", AppStatus.getPlugin().getName(), worldName));
+    }
+
+    public static File getWorldScriptDirectory(World world, ScriptType scriptType) {
+        return getWorldScriptDirectory(world.getName(), scriptType);
+    }
+
+    /**
+     * Get the world directory's script directory.
+     */
+    public static File getWorldScriptDirectory(String worldName, ScriptType scriptType) {
+        if (scriptType.equals(ScriptType.None)) {
+            // scriptType IS NONE. USE plugins/<plugin_name>/worlds/<world_name>/scripts/
+            return new File(String.format("%s/scripts", getWorldDirectory(worldName)));
+        }
+        // scriptType IS NOT NONE. USE plugins/<plugin_name>/worlds/<world_name>/scripts/<script_type>
+        return new File(String.format("%s/scripts/%s", getWorldDirectory(worldName), scriptType.getDirectory()));
+    }
+
+    public static File getWorldScript(World world, ScriptType scriptType, String scriptName) {
+        return new File(String.format("%s/%s%s", getWorldScriptDirectory(world, scriptType), scriptName,
+            AppConstants.SCRIPT_ENGINE_EXTENSION));
+    }
+
+    public static File getWorldVariableFile(World world) {
+        return new File(String.format("%s/variables.json", getWorldDirectory(world)));
     }
 
     /**

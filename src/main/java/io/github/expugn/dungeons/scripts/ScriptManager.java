@@ -7,12 +7,10 @@ import io.github.expugn.dungeons.AppUtils;
 import io.github.expugn.dungeons.dungeons.LoadedDungeon;
 import io.github.expugn.dungeons.dungeons.PlayerState;
 import io.github.expugn.dungeons.itemdrop.ItemDrop;
-import java.io.File;
+import io.github.expugn.dungeons.worlds.WorldVariables;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -39,10 +37,9 @@ import org.openjdk.nashorn.api.scripting.NashornScriptEngineFactory;
 /**
  * Manages the execution of scripts and gives functions useful for scripts to call.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public class ScriptManager implements Script {
-    private static final ExecutorService SCRIPT_EXECUTOR_SERVICE = Executors.newCachedThreadPool();
     private static final ScriptEngine SCRIPT_ENGINE =
         new NashornScriptEngineFactory().getScriptEngine("--language=es6");
     private static final Lock FILE_READ_LOCK = new ReentrantLock();
@@ -60,8 +57,12 @@ public class ScriptManager implements Script {
                 // PLAYER IS IN A DUNGEON,
                 // USE plugins/<plugin_name>/dungeon/<dungeon_name>/scripts/<script_type>/<script_name>
                 // IF ScriptType.None, USE plugins/<plugin_name>/dungeon/<dungeon_name>/scripts/<script_name>
-                File scripts = AppUtils.getDungeonScriptDirectory(dungeonName, scriptType);
-                scriptInfo.setDirectory(scripts.toString());
+                scriptInfo.setDirectory(AppUtils.getDungeonScriptDirectory(dungeonName, scriptType).toString());
+            } else {
+                // PLAYER IS NOT IN A DUNGEON,
+                // USE plugins/<plugin_name>/worlds/<world_name>/scripts/<script_type>/<script_name>
+                // IF ScriptType.None, USE plugins/<plugin_name>/worlds/<world_name>/scripts/<script_name>
+                scriptInfo.setDirectory(AppUtils.getWorldScriptDirectory(player.getWorld(), scriptType).toString());
             }
         }
         if (scriptInfo.getDirectory().isEmpty()) {
@@ -93,10 +94,6 @@ public class ScriptManager implements Script {
         return scriptInfo.isScriptExists();
     }
 
-    public void startScript(String scriptName, ScriptType scriptType) {
-        startScript(scriptName, scriptType, (Player) null);
-    }
-
     public boolean startScript(String scriptName, ScriptType scriptType, Player player) {
         return startScript(scriptName, scriptType, player, "");
     }
@@ -125,15 +122,19 @@ public class ScriptManager implements Script {
             Map<String, LoadedDungeon> activeDungeons = AppStatus.getActiveDungeons();
             if (activeDungeons.containsKey(dungeonName)) {
                 bindings.put("dungeon", activeDungeons.get(dungeonName));
+            } else {
+                // PLAYER IS NOT IN DUNGEON, USE WORLD SCRIPT BINDINGS
+                bindings.put("world", player.getWorld());
+                bindings.put("variables", new WorldVariables(player.getWorld()));
             }
         }
         scriptInfo.setBindings(bindings);
 
         // RUN SCRIPT ASYNC
         if (functionName.isEmpty()) {
-            SCRIPT_EXECUTOR_SERVICE.execute(() -> startScript(scriptInfo));
+            AppStatus.getExecutorService().execute(() -> startScript(scriptInfo));
         } else {
-            SCRIPT_EXECUTOR_SERVICE.execute(() -> startScript(scriptInfo, functionName));
+            AppStatus.getExecutorService().execute(() -> startScript(scriptInfo, functionName));
         }
         return true;
     }
@@ -164,9 +165,9 @@ public class ScriptManager implements Script {
 
         // RUN SCRIPT ASYNC
         if (functionName.isEmpty()) {
-            SCRIPT_EXECUTOR_SERVICE.execute(() -> startScript(scriptInfo));
+            AppStatus.getExecutorService().execute(() -> startScript(scriptInfo));
         } else {
-            SCRIPT_EXECUTOR_SERVICE.execute(() -> startScript(scriptInfo, functionName, parameters));
+            AppStatus.getExecutorService().execute(() -> startScript(scriptInfo, functionName, parameters));
         }
         return true;
     }
@@ -195,7 +196,7 @@ public class ScriptManager implements Script {
         scriptInfo.setBindings(bindings);
 
         // RUN SCRIPT ASYNC
-        SCRIPT_EXECUTOR_SERVICE.execute(() -> startScript(scriptInfo));
+        AppStatus.getExecutorService().execute(() -> startScript(scriptInfo));
         return true;
     }
 
@@ -203,10 +204,9 @@ public class ScriptManager implements Script {
      * Executes a script with the given script info.
      * @param script Script information.
      */
-    public void startScript(ScriptInfo script) {
+    private void startScript(ScriptInfo script) {
         if (!script.isScriptExists()) {
             // SCRIPT DOES NOT EXIST
-            // LOAD DEFAULT SCRIPT INSTEAD
             Bukkit.getLogger().warning("CANNOT FIND " + script.getDirectory());
             return;
         }
@@ -240,10 +240,9 @@ public class ScriptManager implements Script {
      * @param functionName Function name to invoke.
      * @param parameters Parameters to pass to function.
      */
-    public void startScript(ScriptInfo script, String functionName, Object... parameters) {
+    private void startScript(ScriptInfo script, String functionName, Object... parameters) {
         if (!script.isScriptExists()) {
             // SCRIPT DOES NOT EXIST
-            // LOAD DEFAULT SCRIPT INSTEAD
             Bukkit.getLogger().warning("CANNOT FIND " + script.getDirectory());
             return;
         }

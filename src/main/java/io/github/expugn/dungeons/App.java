@@ -10,7 +10,7 @@ import org.openjdk.nashorn.api.scripting.NashornScriptEngineFactory;
  * PartyDungeons utilizes the Nashorn JavaScript engine to bring builds to life while also providing
  * a framework for dungeons and manages their states to keep things in control.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public final class App extends JavaPlugin {
     @Override
@@ -43,7 +43,12 @@ public final class App extends JavaPlugin {
     }
 
     @Override
-    public void onDisable() {}
+    public void onDisable() {
+        // SHUT DOWN EXECUTOR SERVICE IN CASE THERE ARE CURRENTLY ANY IN PROGRESS SCRIPTS
+        getLogger().info(String.format("%s %s", "FORCE SHUTTING DOWN ScriptExecutorService!!!",
+            "There may be exceptions below if there were scripts in progress..."));
+        AppStatus.getExecutorService().shutdownNow();
+    }
 
     /**
      * Setup the economy (Vault).
