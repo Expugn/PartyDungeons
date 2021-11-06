@@ -5,8 +5,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 /**
  * Manages the dropping of random items in the world with pretty sound and visual effects.
@@ -92,5 +97,44 @@ public class ItemDrop {
                 entry.getKey().getAmount(), chance, "%"));
         }
         return list;
+    }
+
+    /**
+     * Open a GUI to the player with the drop table.
+     */
+    public void debugGUI(Player player, int page) {
+        final int slots = 54;
+        Inventory inventory = Bukkit.createInventory(null, slots, "debug");
+        List<ItemStack> items;
+        if (keys.size() <= slots) {
+            items = keys;
+        } else {
+            int start = (page - 1) * slots;
+            if (start >= keys.size()) {
+                // PAGE IS OUT OF BOUNDS
+                items = keys.subList(0, slots);
+            } else {
+                // PAGE IS WITHIN BOUNDS
+                int end = start + slots;
+                end = (end > keys.size()) ? keys.size() : end;
+                items = keys.subList(start, end);
+            }
+        }
+
+        for (ItemStack item : items) {
+            ItemMeta itemMeta = item.getItemMeta();
+            List<String> lore = itemMeta.getLore();
+            if (lore == null) {
+                lore = new ArrayList<>();
+            } else {
+                lore.add("");
+            }
+            lore.add(String.format("%sDEBUG DROP RATE: %d / %d", ChatColor.AQUA, table.get(item), totalWeight));
+            lore.add(String.format("%s%.4f%s", ChatColor.AQUA, (float) table.get(item) / totalWeight, "%"));
+            itemMeta.setLore(lore);
+            item.setItemMeta(itemMeta);
+            inventory.addItem(item);
+        }
+        player.openInventory(inventory);
     }
 }

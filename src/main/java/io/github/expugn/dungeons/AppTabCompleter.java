@@ -50,13 +50,16 @@ public class AppTabCompleter implements TabCompleter {
                     // UNKNOWN DUNGEON NAME
                     results.add("<dungeon_name>");
                     break;
+                case DOWNLOAD:
+                    results.addAll(AppStatus.getActiveDungeons().keySet());
+                    results.add("<manifest_url>");
+                    break;
                 case UNLOAD_DUNGEON:
                 case SET_SPAWN_POSITION:
                 case SET_START_POSITION:
                 case CREATE_SCRIPT:
                 case SETTINGS:
                 case RUN_SCRIPT:
-                case DOWNLOAD:
                 case MANIFEST:
                     // LOADED DUNGEON NAMES
                     results.addAll(AppStatus.getActiveDungeons().keySet());

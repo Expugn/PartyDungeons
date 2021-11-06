@@ -136,11 +136,14 @@ public final class AppHelpMenu {
             "for best\ncompatibility. Probably avoid using this command."))));
         runscript.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/partydungeons runscript"));
         TextComponent download = new TextComponent(
-            String.format("%s/partydungeons %sdownload %s<dungeon_name> <manifest_url>\n", ChatColor.GRAY,
-            ChatColor.GOLD, ChatColor.AQUA));
+            String.format("%s/partydungeons %sdownload %s<dungeon_name> <manifest_url>\n"
+                + "%s/partydungeons %sdownload %s<manifest_url>\n", ChatColor.GRAY,
+            ChatColor.GOLD, ChatColor.AQUA, ChatColor.GRAY, ChatColor.GOLD, ChatColor.AQUA));
         download.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-            new Text(String.format("Read a file manifest from a URL and download files.\n%sAll %s%s", ChatColor.YELLOW,
-            "files in the manifest will overwrite existing files.",
+            new Text(String.format("Read a file manifest from a URL and download files.\n%sAll %s%s%s%s",
+            ChatColor.YELLOW, "files in the manifest will overwrite existing files.",
+            "\nWith <dungeon_name>: Download to plugins/PartyDungeons/dungeon/<dungeon_name>",
+            "\nNo <dungeon_name>: Download to plugins/PartyDungeons",
             "\nDo not use this if you don't want to risk overwritten files."))));
         download.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/partydungeons download"));
         TextComponent manifest = new TextComponent(

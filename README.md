@@ -8,8 +8,8 @@ powered through scripts.
 
 ## Download Process
 There are two versions of downloadable JAR files:
-- `PartyDungeons-<version>.jar`
-- `PartyDungeons-<version>-shaded.jar`
+- `PartyDungeons.jar`
+- `PartyDungeons-shaded.jar`
 
 **`PartyDungeons` requires the use of Nashorn to be used.**<br>
 Nashorn was deprecated on JDK 11. If your current JDK version does not include Nashorn you ***MUST*** download the
@@ -47,7 +47,7 @@ all party members will be teleported when the dungeon begins.
 | `deletescript` | Admin command.<br>Delete a script in the given file path.<br>`plugins/PartyDungeons/<file_path>` will be deleted. Only `.js` files can be deleted with this method. | `deletescript <file_path>` |
 | `settings` | Admin command.<br>Change a dungeon's `max_party` and `daily_clear` values. | `settings <dungeon_name> <setting_type> [value]` |
 | `runscript` | Admin command.<br>Run a script as if you triggered it normally.<br>Try to avoid using this command. | `runscript <dungeon_name> <script_type> <script_name>` |
-| `download` | Admin command.<br>Read from the provided file manifest and bulk download files.<br>All existing files will be overwritten, so don't use this command if you fear overwriting important files. | `download <dungeon_name> <manifest_url>` |
+| `download` | Admin command.<br>Read from the provided file manifest and bulk download files.<br>Including `<dungeon_name>`: Download to `plugins/PartyDungeons/dungeon/<dungeon_name>`<br>No `<dungeon_name>`: Download to `plugins/PartyDungeons`<br>All existing files will be overwritten, so don't use this command if you fear overwriting important files. | `download <dungeon_name> <manifest_url>`<br>`download <manifest_url>` |
 | `manifest` | Admin command.<br>Generate a file manifest for the dungeon.<br>The generated manifest must be reviewed before it is used. | `manifest <dungeon_name> [root_url]` |
 
 ## Script Types

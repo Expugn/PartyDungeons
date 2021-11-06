@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -889,8 +890,65 @@ public class AppCommand implements CommandExecutor {
 
         String dungeonName = args[1];
         if (args.length < THREE_ARGUMENTS) { // partydungeons download <dungeon_name> <url>
-            player.sendMessage(String.format("%sNot enough or incorrect arguments. %s/partydungeons %s %s <url>",
-                ChatColor.RED, ChatColor.GOLD, args[0], args[1]));
+            // IF 2ND ARGUMENT IS URL, DOWNLOAD THAT INSTEAD
+            URL url;
+            try {
+                url = new URL(args[1]);
+                url.toURI();
+            } catch (MalformedURLException | URISyntaxException e) {
+                player.sendMessage(String.format("%sNot enough or incorrect arguments. %s/partydungeons %s %s <url>",
+                    ChatColor.RED, ChatColor.GOLD, args[0], args[1]));
+                return;
+            }
+
+            // VALID URL HERE
+            Scanner scanner;
+            try {
+                scanner = new Scanner(url.openStream());
+            } catch (IOException e) {
+                player.sendMessage(String.format("%sCould not open URL %s%s%s.",
+                    ChatColor.RED, ChatColor.GOLD, args[1], ChatColor.RED));
+                return;
+            }
+            // DO FILE DOWNLOAD IN A DIFFERENT THREAD
+            AppStatus.getExecutorService().execute(() -> {
+                while (scanner.hasNext()) {
+                    String next = scanner.nextLine();
+                    if (next.length() <= 0 || next.startsWith("#")) {
+                        // BLANK LINE OR COMMENT, SKIP
+                        continue;
+                    }
+                    String[] line = next.split(",");
+                    File location = new File(String.format("%s/%s", AppUtils.getPluginDirectory(), line[0]));
+                    player.sendMessage(String.format("%sDownloading %s%s %sto %s%s",
+                        ChatColor.YELLOW, ChatColor.GOLD, line[0], ChatColor.YELLOW, ChatColor.GOLD, location));
+                    URL fileURL;
+                    BufferedInputStream input;
+                    try {
+                        fileURL = new URL(line[1]);
+                        input = new BufferedInputStream(fileURL.openStream());
+
+                        if (!location.exists() && !location.getParentFile().exists()) {
+                            // LOCATION DOESN'T EXIST, CREATE PARENT IF NECESSARY
+                            File parent = location.getParentFile();
+                            parent.mkdirs();
+                        }
+                        Files.copy(input, Paths.get(location.toString()), StandardCopyOption.REPLACE_EXISTING);
+                        input.close();
+                    } catch (MalformedURLException e) {
+                        player.sendMessage(String.format("%sMalformed URL in manifest. Stopping download. %s%s",
+                            ChatColor.RED, ChatColor.GOLD, line[1]));
+                        scanner.close();
+                        break;
+                    } catch (IOException e) {
+                        player.sendMessage(String.format("%sIOException occured during manifest download. %s %s%s",
+                            ChatColor.RED, "Connection problem or file doesn't exist?", ChatColor.GOLD, line[1]));
+                        break;
+                    }
+                }
+                scanner.close();
+                player.sendMessage(String.format("%sManifest download process completed.", ChatColor.YELLOW));
+            });
             return;
         }
 
