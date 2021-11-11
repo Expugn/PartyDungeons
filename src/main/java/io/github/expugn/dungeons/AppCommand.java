@@ -790,11 +790,9 @@ public class AppCommand implements CommandExecutor {
                     break;
                 default:
             }
-            System.out.println("value check should be done");
             return;
         }
 
-        System.out.println("check val");
         int value;
         final int valueIndex = 3;
         try {

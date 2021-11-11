@@ -10,7 +10,7 @@ import java.io.IOException;
 /**
  * Manages the file names of dungeon scripts and creates them.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public final class DungeonScript {
     /**
@@ -47,6 +47,21 @@ public final class DungeonScript {
      */
     public static final String ON_PLAYER_RESET = "onPlayerReset";
 
+    /**
+     * Script containing instructions on how to handle a player when they respawn.
+     */
+    public static final String ON_PLAYER_RESPAWN = "onPlayerRespawn";
+
+    /**
+     * Script containing instructions on how to handle a player when they quit the dungeon (quit, leave, disconnect).
+     */
+    public static final String ON_PARTY_MEMBER_QUIT = "onPartyMemberQuit";
+
+    /**
+     * Script containing instructions on how to handle a player when they die in a dungeon.
+     */
+    public static final String ON_PLAYER_DEATH = "onPlayerDeath";
+
     private DungeonScript() {
         // NOT CALLED, DungeonScript IS A UTILITY CLASS AND REQUIRES THIS PRIVATE CONSTRUCTOR.
     }
@@ -62,7 +77,6 @@ public final class DungeonScript {
         }
         File file;
         String content;
-        FileWriter writer;
 
         final String tags = String.format("%s%s%s%s",
             String.format(" * %-12s %s\n", "@author", "CONSOLE"),
@@ -88,11 +102,7 @@ public final class DungeonScript {
                 tags, bindingPlayer, "function main() {\n\tdungeon.showDefaultStatus(player);\n}\nmain();");
             file = new File(String.format("%s/%s%s", dungeonScripts, DUNGEON_STATUS,
                 AppConstants.SCRIPT_ENGINE_EXTENSION));
-            if (!file.exists() && file.createNewFile()) {
-                writer = new FileWriter(file);
-                writer.write(content);
-                writer.close();
-            }
+            write(new FileWriter(file), file, content);
 
             content = String.format("/**\n%s %s\n *\n%s\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
                 " * DUNGEON type script for DUNGEON", dungeonName,
@@ -102,11 +112,7 @@ public final class DungeonScript {
                 tags, binding, dungeonName, ": onDungeonReset called\");\n}\nmain();");
             file = new File(String.format("%s/%s%s", dungeonScripts, ON_DUNGEON_RESET,
                 AppConstants.SCRIPT_ENGINE_EXTENSION));
-            if (!file.exists() && file.createNewFile()) {
-                writer = new FileWriter(file);
-                writer.write(content);
-                writer.close();
-            }
+            write(new FileWriter(file), file, content);
 
             content = String.format("/**\n%s %s\n *\n%s\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
                 " * DUNGEON type script for DUNGEON", dungeonName,
@@ -116,11 +122,7 @@ public final class DungeonScript {
                 tags, bindingEntity, dungeonName, ": onEntityDeath called\");\n}\nmain();");
             file = new File(String.format("%s/%s%s", dungeonScripts, ON_ENTITY_DEATH,
                 AppConstants.SCRIPT_ENGINE_EXTENSION));
-            if (!file.exists() && file.createNewFile()) {
-                writer = new FileWriter(file);
-                writer.write(content);
-                writer.close();
-            }
+            write(new FileWriter(file), file, content);
 
             content = String.format("/**\n%s %s\n *\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
                 " * DUNGEON type script for DUNGEON", dungeonName,
@@ -129,11 +131,7 @@ public final class DungeonScript {
                 tags, bindingPlayer, dungeonName, ": onPartyMemberJoin called\");\n}\nmain();");
             file = new File(String.format("%s/%s%s", dungeonScripts, ON_PARTY_MEMBER_JOIN,
                 AppConstants.SCRIPT_ENGINE_EXTENSION));
-            if (!file.exists() && file.createNewFile()) {
-                writer = new FileWriter(file);
-                writer.write(content);
-                writer.close();
-            }
+            write(new FileWriter(file), file, content);
 
             content = String.format("/**\n%s %s\n *\n%s\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
                 " * DUNGEON type script for DUNGEON", dungeonName,
@@ -143,11 +141,7 @@ public final class DungeonScript {
                 tags, bindingPlayer, dungeonName, ": onPlayerRebirth called\");\n}\nmain();");
             file = new File(String.format("%s/%s%s", dungeonScripts, ON_PLAYER_REBIRTH,
                 AppConstants.SCRIPT_ENGINE_EXTENSION));
-            if (!file.exists() && file.createNewFile()) {
-                writer = new FileWriter(file);
-                writer.write(content);
-                writer.close();
-            }
+            write(new FileWriter(file), file, content);
 
             content = String.format("/**\n%s %s\n *\n%s\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
                 " * DUNGEON type script for DUNGEON", dungeonName,
@@ -157,13 +151,44 @@ public final class DungeonScript {
                 tags, bindingPlayer, dungeonName, ": onPlayerReset called\");\n}\nmain();");
             file = new File(String.format("%s/%s%s", dungeonScripts, ON_PLAYER_RESET,
                 AppConstants.SCRIPT_ENGINE_EXTENSION));
-            if (!file.exists() && file.createNewFile()) {
-                writer = new FileWriter(file);
-                writer.write(content);
-                writer.close();
-            }
+            write(new FileWriter(file), file, content);
+
+            content = String.format("/**\n%s %s\n *\n%s\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
+                " * DUNGEON type script for DUNGEON", dungeonName,
+                " * onPlayerRespawn is a script that contains instructions on how",
+                " * to handle a player when they respawn in game after they die.",
+                " * The player at this state is labeled as \"Dead\" in the dungeon.",
+                tags, bindingPlayer, dungeonName, ": onPlayerRespawn called\");\n}\nmain();");
+            file = new File(String.format("%s/%s%s", dungeonScripts, ON_PLAYER_RESPAWN,
+                AppConstants.SCRIPT_ENGINE_EXTENSION));
+            write(new FileWriter(file), file, content);
+
+            content = String.format("/**\n%s %s\n *\n%s\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
+                " * DUNGEON type script for DUNGEON", dungeonName,
+                " * onPartyMemberQuit is a script that contains instructions on how",
+                " * to handle a player when they leave or disconnect from a party while it is active.",
+                " * The player at this state is labeled as \"Quitter\" or \"Offline\" in the dungeon.",
+                tags, bindingPlayer, dungeonName, ": onPartyMemberQuit called\");\n}\nmain();");
+            file = new File(String.format("%s/%s%s", dungeonScripts, ON_PARTY_MEMBER_QUIT,
+                AppConstants.SCRIPT_ENGINE_EXTENSION));
+            write(new FileWriter(file), file, content);
+
+            content = String.format("/**\n%s %s\n *\n%s\n%s\n%s\n *\n%s *\n%s */\nfunction main() {\n\tprint(\"%s%s",
+                " * DUNGEON type script for DUNGEON", dungeonName,
+                " * onPlayerDeath is a script that contains instructions on how",
+                " * to handle a player when they die while a dungeon is active.",
+                " * The player at this state is labeled as \"Dead\" in the dungeon.",
+                tags, bindingPlayer, dungeonName, ": onPlayerDeath called\");\n}\nmain();");
+            file = new File(String.format("%s/%s%s", dungeonScripts, ON_PLAYER_DEATH,
+                AppConstants.SCRIPT_ENGINE_EXTENSION));
+            write(new FileWriter(file), file, content);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void write(FileWriter writer, File file, String content) throws IOException {
+        writer.write(content);
+        writer.close();
     }
 }

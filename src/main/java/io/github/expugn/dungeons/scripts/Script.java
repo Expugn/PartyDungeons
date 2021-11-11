@@ -1,5 +1,6 @@
 package io.github.expugn.dungeons.scripts;
 
+import com.sk89q.worldedit.util.nbt.CompoundBinaryTag;
 import io.github.expugn.dungeons.App;
 import io.github.expugn.dungeons.dungeons.LoadedDungeon;
 import io.github.expugn.dungeons.dungeons.PlayerState;
@@ -15,7 +16,7 @@ import org.bukkit.potion.PotionEffectType;
 /**
  * An interface containing functions a script can use.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public interface Script {
     /**
@@ -74,6 +75,18 @@ public interface Script {
     String getScriptDirectory(String dungeonName, String scriptType);
 
     /**
+     * Get the dungeon directory for a given LoadedDungeon.
+     * @param dungeon Dungeon to get the directory of.
+     */
+    String getDungeonDirectory(LoadedDungeon dungeon);
+
+    /**
+     * Get the dungeon directory for a given dungeon name.
+     * @param dungeonName Name of dungeon.
+     */
+    String getDungeonDirectory(String dungeonName);
+
+    /**
      * Get world that dungeon exists in.
      * @param dungeon LoadedDungeon object.
      * @return World object that dungeon exists in.
@@ -115,6 +128,25 @@ public interface Script {
      * Withdraw money from a player.
      */
     boolean withdrawMoney(Player player, double amount);
+
+    /**
+     * Paste a schematic at the given filePath using World Edit from a given location.
+     */
+    void pasteSchematic(String filePath, Location location);
+
+    /**
+     * Get the block at the given location's NBT data.
+     * @param location Location to get NBT data from.
+     * @return CompoundBinaryTag object.
+     */
+    CompoundBinaryTag getNBT(Location location);
+
+    /**
+     * Set the block at the given location's NBT data.
+     * @param location Location to set NBT data to.
+     * @param cbt CompoundBinaryTag object.
+     */
+    void setNBT(Location location, CompoundBinaryTag cbt);
 
     /**
      * Clear specific PotionEffectTypes from the player if they have it.

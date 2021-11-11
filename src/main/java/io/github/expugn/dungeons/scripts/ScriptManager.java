@@ -1,5 +1,17 @@
 package io.github.expugn.dungeons.scripts;
 
+import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.MaxChangedBlocksException;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.bukkit.BukkitWorld;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.math.transform.Transform;
+import com.sk89q.worldedit.util.concurrency.LazyReference;
+import com.sk89q.worldedit.util.nbt.CompoundBinaryTag;
+import com.sk89q.worldedit.world.block.BaseBlock;
+import com.sk89q.worldedit.world.block.BlockState;
 import io.github.expugn.dungeons.App;
 import io.github.expugn.dungeons.AppConstants;
 import io.github.expugn.dungeons.AppStatus;
@@ -8,6 +20,7 @@ import io.github.expugn.dungeons.dungeons.LoadedDungeon;
 import io.github.expugn.dungeons.dungeons.PlayerState;
 import io.github.expugn.dungeons.itemdrop.ItemDrop;
 import io.github.expugn.dungeons.worlds.WorldVariables;
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -24,7 +37,6 @@ import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse.ResponseType;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -37,17 +49,26 @@ import org.openjdk.nashorn.api.scripting.NashornScriptEngineFactory;
 /**
  * Manages the execution of scripts and gives functions useful for scripts to call.
  * @author S'pugn
- * @version 0.2
+ * @version 0.3
  */
 public class ScriptManager implements Script {
-    private static final ScriptEngine SCRIPT_ENGINE =
-        new NashornScriptEngineFactory().getScriptEngine("--language=es6");
+    private static ScriptEngine scriptEngine;
     private static final Lock FILE_READ_LOCK = new ReentrantLock();
 
-    private ScriptInfo scriptInfo;
+    /**
+     * Initializes the script engine.
+     * Temporarily changes the ClassLoader to the plugin's classloader and restores the ClassLoader when done.
+     * This is done so classes like WorldEdit's can be accessed in scripts.
+     */
+    public ScriptManager() {
+        ClassLoader previous = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(AppStatus.getPlugin().getClass().getClassLoader());
+        scriptEngine = new NashornScriptEngineFactory().getScriptEngine("--language=es6");
+        Thread.currentThread().setContextClassLoader(previous);
+    }
 
-    private boolean newScriptInfo(String scriptName, ScriptType scriptType, Player player) {
-        scriptInfo = new ScriptInfo(scriptName, scriptType);
+    private ScriptInfo newScriptInfo(String scriptName, ScriptType scriptType, Player player) {
+        ScriptInfo scriptInfo = new ScriptInfo(scriptName, scriptType);
         scriptInfo.setPlayer(player);
 
         if (player != null) {
@@ -80,18 +101,18 @@ public class ScriptManager implements Script {
         // ADD FILE TO DIRECTORY
         scriptInfo.setDirectory(String.format("%s/%s%s", scriptInfo.getDirectory(), scriptName,
             AppConstants.SCRIPT_ENGINE_EXTENSION));
-        return scriptInfo.isScriptExists();
+        return scriptInfo;
     }
 
-    private boolean newScriptInfo(String scriptName, ScriptType scriptType, LoadedDungeon dungeon) {
+    private ScriptInfo newScriptInfo(String scriptName, ScriptType scriptType, LoadedDungeon dungeon) {
         // NO PLAYER, BUT RUN DUNGEON SCRIPT
-        scriptInfo = new ScriptInfo(scriptName, scriptType);
+        ScriptInfo scriptInfo = new ScriptInfo(scriptName, scriptType);
         String dungeonName = dungeon.getDungeon().getName();
         scriptInfo.setDirectory(String.format("%s/%s%s",
             AppUtils.getDungeonScriptDirectory(dungeonName, scriptType).toString(), scriptName,
                 AppConstants.SCRIPT_ENGINE_EXTENSION));
 
-        return scriptInfo.isScriptExists();
+        return scriptInfo;
     }
 
     public boolean startScript(String scriptName, ScriptType scriptType, Player player) {
@@ -107,14 +128,15 @@ public class ScriptManager implements Script {
      * @return true if the script has started, false otherwise.
      */
     public boolean startScript(String scriptName, ScriptType scriptType, Player player, String functionName) {
-        if (!newScriptInfo(scriptName, scriptType, player)) {
+        ScriptInfo scriptInfo = newScriptInfo(scriptName, scriptType, player);
+        if (!scriptInfo.isScriptExists()) {
             // SCRIPT DOES NOT EXIST, EXIT
             return false;
         }
         scriptInfo.setPlayer(player);
 
         // CREATE BINDINGS
-        Bindings bindings = SCRIPT_ENGINE.createBindings();
+        Bindings bindings = scriptEngine.createBindings();
         bindings.put("sm", this);
         if (player != null) {
             bindings.put("player", player);
@@ -155,7 +177,8 @@ public class ScriptManager implements Script {
     public boolean startScript(String scriptName, ScriptType scriptType, Bindings bindings, String functionName,
         Object... parameters) {
 
-        if (!newScriptInfo(scriptName, scriptType, (Player) null)) {
+        ScriptInfo scriptInfo = newScriptInfo(scriptName, scriptType, (Player) null);
+        if (!scriptInfo.isScriptExists()) {
             // SCRIPT DOES NOT EXIST, EXIT
             return false;
         }
@@ -173,7 +196,7 @@ public class ScriptManager implements Script {
     }
 
     public boolean startScript(String scriptName, ScriptType scriptType, LoadedDungeon dungeon) {
-        return startScript(scriptName, scriptType, dungeon, SCRIPT_ENGINE.createBindings());
+        return startScript(scriptName, scriptType, dungeon, scriptEngine.createBindings());
     }
 
     /**
@@ -185,7 +208,8 @@ public class ScriptManager implements Script {
      * @return boolean if script has started.
      */
     public boolean startScript(String scriptName, ScriptType scriptType, LoadedDungeon dungeon, Bindings bindings) {
-        if (!newScriptInfo(scriptName, scriptType, dungeon)) {
+        ScriptInfo scriptInfo = newScriptInfo(scriptName, scriptType, dungeon);
+        if (!scriptInfo.isScriptExists()) {
             // SCRIPT DOES NOT EXIST, EXIT
             return false;
         }
@@ -207,7 +231,7 @@ public class ScriptManager implements Script {
     private void startScript(ScriptInfo script) {
         if (!script.isScriptExists()) {
             // SCRIPT DOES NOT EXIST
-            Bukkit.getLogger().warning("CANNOT FIND " + script.getDirectory());
+            // Bukkit.getLogger().warning("CANNOT FIND " + script.getDirectory());
             return;
         }
 
@@ -226,7 +250,7 @@ public class ScriptManager implements Script {
 
         // TRY EVALUATING COMPILED SCRIPT
         try {
-            compiledScript = ((Compilable) SCRIPT_ENGINE).compile(content.toString());
+            compiledScript = ((Compilable) scriptEngine).compile(content.toString());
             compiledScript.eval(script.getBindings());
         } catch (ScriptException e) {
             e.printStackTrace();
@@ -243,7 +267,7 @@ public class ScriptManager implements Script {
     private void startScript(ScriptInfo script, String functionName, Object... parameters) {
         if (!script.isScriptExists()) {
             // SCRIPT DOES NOT EXIST
-            Bukkit.getLogger().warning("CANNOT FIND " + script.getDirectory());
+            // Bukkit.getLogger().warning("CANNOT FIND " + script.getDirectory());
             return;
         }
 
@@ -266,11 +290,11 @@ public class ScriptManager implements Script {
             ScriptContext scriptContext = new SimpleScriptContext();
             scriptContext.setBindings(script.getBindings(), ScriptContext.ENGINE_SCOPE);
 
-            compiledScript = ((Compilable) SCRIPT_ENGINE).compile(content.toString());
+            compiledScript = ((Compilable) scriptEngine).compile(content.toString());
             compiledScript.eval(scriptContext);
 
-            SCRIPT_ENGINE.setContext(scriptContext);
-            Invocable invocable = (Invocable) SCRIPT_ENGINE;
+            scriptEngine.setContext(scriptContext);
+            Invocable invocable = (Invocable) scriptEngine;
             invocable.invokeFunction(functionName, parameters);
         } catch (ScriptException e) {
             e.printStackTrace();
@@ -318,6 +342,16 @@ public class ScriptManager implements Script {
     @Override
     public String getScriptDirectory(String dungeonName, String scriptType) {
         return AppUtils.getDungeonScriptDirectory(dungeonName, ScriptType.valueOf(scriptType)).toString();
+    }
+
+    @Override
+    public String getDungeonDirectory(LoadedDungeon dungeon) {
+        return getDungeonDirectory(dungeon.getDungeon().getName());
+    }
+
+    @Override
+    public String getDungeonDirectory(String dungeonName) {
+        return AppUtils.getDungeonDirectory(dungeonName).toString();
     }
 
     @Override
@@ -382,6 +416,41 @@ public class ScriptManager implements Script {
             return false;
         }
         return economy.withdrawPlayer(player, amount).type == ResponseType.SUCCESS;
+    }
+
+    @Override
+    public void pasteSchematic(String filePath, Location location) {
+        ClipboardFormat format = ClipboardFormats.findByFile(new File(filePath));
+        try {
+            format.load(new File(filePath))
+                .paste(new BukkitWorld(location.getWorld()), BlockVector3.at(location.getX(), location.getY(),
+                    location.getZ()), true, false, (Transform) null)
+                .close();
+        } catch (IOException | MaxChangedBlocksException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public CompoundBinaryTag getNBT(Location location) {
+        BukkitWorld world = new BukkitWorld(location.getWorld());
+        EditSession edit = WorldEdit.getInstance().newEditSession(world);
+        BlockVector3 position = BlockVector3.at(location.getX(), location.getY(), location.getZ());
+        CompoundBinaryTag cbt = edit.getBlock(position).getNbt();
+        edit.close();
+        return cbt;
+    }
+
+    @Override
+    public void setNBT(Location location, CompoundBinaryTag cbt) {
+        BukkitWorld world = new BukkitWorld(location.getWorld());
+        EditSession edit = WorldEdit.getInstance().newEditSession(world);
+        BlockVector3 position = BlockVector3.at(location.getX(), location.getY(), location.getZ());
+        BlockState blockState = edit.getBlock(position);
+        BaseBlock newBlock = blockState.toBaseBlock(LazyReference.computed(cbt));
+        edit.setBlock(location.getBlockX(), location.getBlockY(), location.getBlockZ(), newBlock);
+        edit.flushQueue();
+        edit.close();
     }
 
     @Override

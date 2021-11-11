@@ -28,13 +28,14 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 /**
  * This class handles all EventListening for the PartyDungeons App.
  * @author S'pugn
- * @version 0.2
+ * @version 0.3
  */
 public class AppEventListener implements Listener {
     /**
@@ -131,6 +132,7 @@ public class AppEventListener implements Listener {
         // MARK THEM AS DEAD
         AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
         dungeon.modifyPlayerState(player, PlayerState.Dead);
+        AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_DEATH, ScriptType.Dungeon, player);
 
         // CHECK IF WE SHOULD RESET THE DUNGEON
         dungeon.resetCheck();
@@ -240,6 +242,8 @@ public class AppEventListener implements Listener {
 
                 // RUN DUNGEON SPECIFIC RESET SCRIPTS HERE (RESET HEALTH CHANGES, POTION EFFECTS, ETC)
                 AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
+                AppStatus.getScriptManager().startScript(DungeonScript.ON_PARTY_MEMBER_QUIT, ScriptType.Dungeon,
+                    player);
 
                 // MODIFY PLAYER TYPE IN DUNGEON PARTY TO BE "QUITTER"
                 dungeon.modifyPlayerState(player, PlayerState.Quitter);
@@ -388,6 +392,9 @@ public class AppEventListener implements Listener {
         // MODIFY PLAYER TYPE IN DUNGEON PARTY TO BE "OFFLINE"
         dungeon.modifyPlayerState(player, PlayerState.Offline);
 
+        // HOW TO HANDLE A PLAYER WHEN THEY QUIT?
+        AppStatus.getScriptManager().startScript(DungeonScript.ON_PARTY_MEMBER_QUIT, ScriptType.Dungeon, player);
+
         // CHECK IF WE SHOULD RESET THE DUNGEON
         dungeon.resetCheck();
     }
@@ -484,13 +491,35 @@ public class AppEventListener implements Listener {
         // MODIFY PLAYER TYPE IN DUNGEON PARTY TO BE "QUITTER"
         dungeon.modifyPlayerState(player, PlayerState.Quitter);
 
+        // RUN DUNGEON SPECIFIC RESET SCRIPTS HERE (RESET HEALTH CHANGES, POTION EFFECTS, ETC)
+        AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
+        AppStatus.getScriptManager().startScript(DungeonScript.ON_PARTY_MEMBER_QUIT, ScriptType.Dungeon, player);
+
         // REMOVE THEM FROM activePlayers
         AppStatus.getActivePlayers().remove(uuid);
 
-        // RUN DUNGEON SPECIFIC RESET SCRIPTS HERE (RESET HEALTH CHANGES, POTION EFFECTS, ETC)
-        AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
-
         // CHECK IF WE SHOULD RESET THE DUNGEON
         dungeon.resetCheck();
+    }
+
+    /**
+     * Triggers whenever a player respawns after they died.
+     * @param e PlayerRespawnEvent.
+     */
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent e) {
+        Player player = e.getPlayer();
+        if (!AppUtils.isPlayerInDungeon(player)) {
+            // PLAYER IS NOT ACTIVELY IN A DUNGEON
+            return;
+        }
+
+        String dungeonName = AppStatus.getActivePlayers().get(player.getUniqueId());
+        if (new File(String.format("%s/%s%s", AppUtils.getDungeonScriptDirectory(dungeonName, ScriptType.Dungeon),
+            DungeonScript.ON_PLAYER_RESPAWN, AppConstants.SCRIPT_ENGINE_EXTENSION)).exists()) {
+
+            // RUN ON_PLAYER_RESPAWN SCRIPT IF IT EXISTS
+            AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESPAWN, ScriptType.Dungeon, player);
+        }
     }
 }

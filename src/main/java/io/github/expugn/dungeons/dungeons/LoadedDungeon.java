@@ -19,7 +19,7 @@ import org.bukkit.scheduler.BukkitRunnable;
  * A loaded dungeon is a {@link Dungeon} that is currently "active" on the server. Players can join these loaded
  * dungeons with the `/partymembers join` command when they are in the area.
  * @author S'pugn
- * @version 0.1
+ * @version 0.2
  */
 public class LoadedDungeon {
     private Dungeon dungeon;
@@ -57,9 +57,21 @@ public class LoadedDungeon {
      * - Dungeon active state is set to true.
      * - All (alive) party members will be teleported to the start location.
      * - Party is saved in dungeon file in case of server shutdown.
-     * @return
+     * @return true if the dungeon was successfully started, false otherwise.
      */
     public boolean start() {
+        return start(true);
+    }
+
+    /**
+     * Force a dungeon to start. A dungeon with an empty party or one that is already active can not start.
+     * - Dungeon active state is set to true.
+     * - All (alive) party members will be teleported to the start location.
+     * - Party is saved in dungeon file in case of server shutdown.
+     * @param teleportPlayers Whether to teleport all party members to the start location.
+     * @return Whether the dungeon was successfully started.
+     */
+    public boolean start(boolean teleportPlayers) {
         if (party.size() <= 0) {
             // PARTY IS EMPTY
             return false;
@@ -71,17 +83,19 @@ public class LoadedDungeon {
 
         // START DUNGEON AND TELEPORT PARTY MEMBERS TO START
         active = true;
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                for (Map.Entry<UUID, PlayerState> entry : party.entrySet()) {
-                    // TELEPORT ONLY ALIVE PLAYERS
-                    if (entry.getValue().equals(PlayerState.Alive)) {
-                        AppUtils.uuidToPlayer(entry.getKey()).teleport(dungeon.getDungeonFile().getStartLocation());
+        if (teleportPlayers) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    for (Map.Entry<UUID, PlayerState> entry : party.entrySet()) {
+                        // TELEPORT ONLY ALIVE PLAYERS
+                        if (entry.getValue().equals(PlayerState.Alive)) {
+                            AppUtils.uuidToPlayer(entry.getKey()).teleport(dungeon.getDungeonFile().getStartLocation());
+                        }
                     }
                 }
-            }
-        }.runTaskLater(AppStatus.getPlugin(), 0L);
+            }.runTaskLater(AppStatus.getPlugin(), 0L);
+        }
 
         // SAVE PARTY IN DUNGEON FILE
         dungeon.getDungeonFile().setParty(party);
@@ -153,18 +167,18 @@ public class LoadedDungeon {
 
                 // MAKE DUNGEON INACTIVE
                 active = false;
+
+                // MARK clear AS FALSE
+                clear = false;
+
+                // CLEAR PARTY IN DUNGEON FILE
+                dungeon.getDungeonFile().clearParty();
+                dungeon.getDungeonFile().saveJSON(dungeon.getName());
             }
         }.runTaskLater(AppStatus.getPlugin(), 0L);
 
         // RUN onDungeonReset SCRIPT TO DEAL WITH ANY PREVIOUS CHANGES
         AppStatus.getScriptManager().startScript(DungeonScript.ON_DUNGEON_RESET, ScriptType.Dungeon, this);
-
-        // MARK clear AS FALSE
-        clear = false;
-
-        // CLEAR PARTY IN DUNGEON FILE
-        dungeon.getDungeonFile().clearParty();
-        dungeon.getDungeonFile().saveJSON(dungeon.getName());
     }
 
     /**
@@ -318,6 +332,7 @@ public class LoadedDungeon {
             // PLAYER IS ALIVE AND WANTS TO LEAVE WHILE DUNGEON IS IN PROGRESS
             // MARK THEM AS A QUITTER, DO ANY RESETS NECESSARY, AND TELEPORT THEM TO SPAWN
             // ALSO REMOVE THEM FROM activePlayers SO THEY CAN JOIN OTHER DUNGEONS
+            AppStatus.getScriptManager().startScript(DungeonScript.ON_PARTY_MEMBER_QUIT, ScriptType.Dungeon, player);
             AppStatus.getScriptManager().startScript(DungeonScript.ON_PLAYER_RESET, ScriptType.Dungeon, player);
             messageParty(String.format("%s%s %shas abandoned the party.",
                 ChatColor.GOLD, player.getName(), ChatColor.RED));

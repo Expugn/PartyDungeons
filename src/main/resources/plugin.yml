@@ -4,7 +4,7 @@ version: ${project.version}
 author: S'pugn
 website: https://github.com/Expugn/PartyDungeons
 api-version: 1.17
-softdepend: [Vault]
+softdepend: [Vault, FastAsyncWorldEdit]
 commands:
   spugn:
     description: Debug command for S'pugn

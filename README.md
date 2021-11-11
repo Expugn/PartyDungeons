@@ -70,8 +70,11 @@ You can find these scripts in the `PartyDungeons/dungeon/<dungeon_name>/scripts/
 | `onDungeonReset` | Called when the dungeon should be reset. Perform world editing or entity clearing here. |
 | `onEntityDeath` | Called when an entity in the dungeon area dies. |
 | `onPartyMemberJoin` | Called when a new player joins the party. Handle how the dungeon should be started here. |
+| `onPartyMemberQuit` | Called when a player leaves the party while the dungeon is in progress. Handle if the dungeon should stop here. |
 | `onPlayerRebirth` | Changes the behavior of `/partydungeons join` when a dead player tries to rejoin. |
 | `onPlayerReset` | Called when a player quits a dungeon session. Handle removing permanent effects from the player here. |
+| `onPlayerRespawn` | Called when a player respawns after dying. Handle if you should teleport the player back somewhere here. |
+| `onPlayerDeath` | Called when a player dies in a dungeon. Handle what should happen here. |
 
 ## Dungeon Scripting Tips
 - Performing tasks like teleporting players, placing blocks, or spawning entites requires using `BukkitScheduler`. The script can not perform these tasks directly because scripts run in a seperate thread.
@@ -85,6 +88,109 @@ As of `v1.1`, World Scripts have been added.
 World Scripts are scripts that can be triggered by ***anyone that's not in a dungeon party***. *Players in a dungeon instance will not be able to trigger these scripts*. World scripts are to be used if you want the scripting system of `PartyDungeons` to power different non-dungeon instances.
 
 Despite having this feature, **`PartyDungeons` will always be a dungeon instance manager**, so *flexibility of World Scripts may not be up to standards with other scripting plugins*.
+
+## FastAsyncWorldEdit Support
+As of `v1.2`, `FastAsyncWorldEdit` has been added to `PartyDungeons`, which opens up some new possibilities.<br>
+The example code below will work without the need of `BukkitScheduler`, thanks to `FastAsyncWorldEdit`'s implementation.
+
+**Schematic Pasting Example:**
+Assuming you already have a schematic saved via `//schem save <schematic_name>`
+```javascript
+const Location = Java.type("org.bukkit.Location");
+const file_path = `${sm.getDungeonDirectory("<dungeon_name>")}/<schematic_name>.schem`;
+const location = new Location(player.getWorld(), x, y, z);
+sm.pasteSchematic(file_path, location);
+```
+
+**Block NBT Editing:**
+This is useful for modifying NBT data not possible with Spigot.<br>
+Overall, NBT editing can get pretty confusing, so try to avoid doing so if you can.<br>
+Creating your desired block with commands first is recommended to see how NBT is formatted with `FastAsyncWorldEdit`'s `//nbtinfo` command.
+
+*Changing Basic Pig Spawner to Zombie with NBT Data*
+```javascript
+// Assuming we're modifying the NBT of a CreatureSpawner at [x, y, z]...
+const Location = Java.type("org.bukkit.Location");
+const location = new Location(player.getWorld(), x, y, z);
+let nbt = sm.getNBT(location);
+
+// Modify SpawnData (next creature to be summoned)
+let spawn_data = nbt.get("SpawnData");
+spawn_data = spawn_data.putString("id", "minecraft:zombie");
+spawn_data = spawn_data.putBoolean("NoAI", true);
+spawn_data = spawn_data.putString("CustomName", "\"Cool Name\"");
+
+// Add potion effects to creature
+let active_effects_list = spawn_data.getList("ActiveEffects");
+let effect = nbt.getCompound("newCompound");
+effect = effect.put("Id", 1); // SPEED
+effect = effect.put("Amplifier", 0);
+effect = effect.put("Duration", 999999);
+active_effects_list = active_effects_list["add(BinaryTag)"](effect);
+spawn_data = spawn_data.put("ActiveEffects", active_effects_list);
+
+// Set the next creature to spawn from our CreatureSpawner to spawn_data
+nbt = nbt.put("SpawnData", spawn_data);
+
+// Modify SpawnPotentials (Replace the only existing one)
+// WE NEED TO MODIFY THIS OTHERWISE OUR spawn_data WILL NEVER
+// SPAWN AGAIN AFTER THE FIRST SPAWN
+let spawn_potentials_list = nbt.getList("SpawnPotentials");
+let list_entry = list.get(0);
+list_entry = list_entry.put("Entity", spawn_data);
+spawn_potentials_list = list.set(0, list_entry, null);
+nbt = nbt.put("SpawnPotentials", list);
+
+// Save NBT to our CreatureSpawner
+sm.setNBT(location, nbt);
+```
+
+*Adding NBT Data to a CreatureSpawner with .setSpawnedType(EntityType.FALLING_BLOCK)*
+```javascript
+// Assuming we're modifying the NBT of a CreatureSpawner at [x, y, z]...
+const Location = Java.type("org.bukkit.Location");
+const location = new Location(player.getWorld(), x, y, z);
+let nbt = sm.getNBT(location);
+
+// SPAWNER SETTINGS
+nbt = nbt.putShort("MaxNearbyEntities", 31);
+nbt = nbt.putShort("RequiredPlayerRange", 50);
+nbt = nbt.putShort("SpawnCount", 30);
+nbt = nbt.putShort("Delay", 1);
+nbt = nbt.putShort("MaxSpawnDelay", 1);
+nbt = nbt.putShort("MinSpawnDelay", 1);
+
+// SPAWN DATA
+let spawn_data = nbt.get("SpawnData");
+spawn_data = spawn_data.putString("id", "minecraft:falling_block");
+spawn_data = spawn_data.putInt("Time", 1);
+spawn_data = spawn_data.putBoolean("DropItem", false);
+spawn_data = spawn_data.putBoolean("HurtEntities", true);
+spawn_data = spawn_data.putInt("FallHurtMax", 2);
+spawn_data = spawn_data.putFloat("FallHurtAmount", 2.0);
+
+// SPAWN DATA : BLOCK STATE
+let block_state = nbt.getCompound("newBlockState");
+block_state = block_state.putString("Name", "minecraft:pointed_dripstone");
+let properties = nbt.getCompound("newProperties");
+properties = properties.putString("thickness", "tip_merge");
+properties = properties.putString("vertical_direction", "down");
+properties = properties.putString("waterlogged", "false");
+block_state = block_state.put("Properties", properties);
+spawn_data = spawn_data.put("BlockState", block_state);
+
+// SPAWN DATA : SAVE TO NBT
+nbt = nbt = nbt.put("SpawnData", spawn_data);
+
+// SPAWN POTENTIALS
+let list = nbt.getList("SpawnPotentials");
+let entry = list.get(0);
+entry = entry.put("Entity", spawn_data);
+list = list.set(0, entry, null);
+nbt = nbt.put("SpawnPotentials", list);
+
+sm.setNBT(location, nbt);
+```
 
 ## Example Scripts
 Example scripts can be found here: <https://github.com/Expugn/PartyDungeonsScripts><br>

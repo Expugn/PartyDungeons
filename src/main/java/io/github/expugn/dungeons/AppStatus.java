@@ -19,7 +19,7 @@ import org.bukkit.entity.Player;
  * Manages the current PartyDungeons App's status.
  * These variables are accessible throughout the entire plugin if needed.
  * @author S'pugn
- * @version 0.2
+ * @version 0.3
  */
 public final class AppStatus {
     private static boolean isInitialized;
@@ -28,7 +28,7 @@ public final class AppStatus {
     private static Map<Player, String> activeSelections;
     private static Map<String, LoadedDungeon> activeDungeons;
     private static ResetHandler resetHandler;
-    private static final ScriptManager SCRIPT_MANAGER = new ScriptManager();
+    private static ScriptManager scriptManager;
     private static final ExecutorService SCRIPT_EXECUTOR_SERVICE = Executors.newCachedThreadPool();
     private static Economy economy;
 
@@ -50,6 +50,7 @@ public final class AppStatus {
         activePlayers = new HashMap<>();
         activeSelections = new HashMap<>();
         resetHandler = ResetHandler.getResetHandler();
+        scriptManager = new ScriptManager();
         economy = null;
         // activeDungeons = new HashMap<>(); DONE IN loadAllDungeons()
 
@@ -73,7 +74,7 @@ public final class AppStatus {
     }
 
     public static ScriptManager getScriptManager() {
-        return SCRIPT_MANAGER;
+        return scriptManager;
     }
 
     public static ExecutorService getExecutorService() {
