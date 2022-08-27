@@ -2,12 +2,12 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.expugn</groupId>
   <artifactId>dungeons</artifactId>
-  <version>1.2</version>
+  <version>1.2.1</version>
   <packaging>jar</packaging>
   <properties>
-    <java.version>16</java.version>
-    <maven.compiler.source>1.16</maven.compiler.source>
-    <maven.compiler.target>1.16</maven.compiler.target>
+    <java.version>17</java.version>
+    <maven.compiler.source>1.17</maven.compiler.source>
+    <maven.compiler.target>1.17</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.6.0</junit.version>
     <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
@@ -36,11 +36,6 @@
         <id>jitpack.io</id>
         <url>https://jitpack.io</url>
     </repository>
-    <!-- FOR FAST-ASYNC WORLD EDIT -->
-    <repository>
-      <id>IntellectualSites Releases</id>
-      <url>https://mvn.intellectualsites.com/content/repositories/releases/</url>
-    </repository>
     <!-- FOR PAPERMC -->
     <repository>
       <id>papermc</id>
@@ -51,6 +46,17 @@
       <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
     </repository>
   </repositories>
+  <dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.intellectualsites.bom</groupId>
+            <artifactId>bom-1.18.x</artifactId>
+            <version>1.13</version>
+            <scope>import</scope>
+            <type>pom</type>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
   <dependencies>
     <dependency>
       <groupId>org.spigotmc</groupId>
@@ -62,7 +68,7 @@
     <dependency>
       <groupId>org.openjdk.nashorn</groupId>
       <artifactId>nashorn-core</artifactId>
-      <version>15.2</version>
+      <version>15.4</version>
       <scope>compile</scope>
     </dependency>
     <!-- VAULT -->
@@ -75,21 +81,19 @@
     <!-- FAST ASYNC WORLD EDIT -->
     <dependency>
       <groupId>com.fastasyncworldedit</groupId>
-      <artifactId>FastAsyncWorldEdit-Bukkit</artifactId>
-      <version>1.17-390</version>
+      <artifactId>FastAsyncWorldEdit-Core</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>io.papermc</groupId>
-      <artifactId>paperlib</artifactId>
-      <version>1.0.6</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.kyori</groupId>
-      <artifactId>adventure-text-minimessage</artifactId>
-      <version>4.2.0-SNAPSHOT</version>
-      <scope>provided</scope>
+        <groupId>com.fastasyncworldedit</groupId>
+        <artifactId>FastAsyncWorldEdit-Bukkit</artifactId>
+        <scope>provided</scope>
+        <exclusions>
+            <exclusion>
+                <artifactId>FastAsyncWorldEdit-Core</artifactId>
+                <groupId>*</groupId>
+            </exclusion>
+        </exclusions>
     </dependency>
     <!-- MISC TEST DEPENDENCIES -->
     <dependency>
@@ -157,7 +161,7 @@
           <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.8.8</version>
+            <version>2.9.0</version>
           </dependency>
         </dependencies>
         <configuration>
@@ -270,15 +274,15 @@
 					</execution>
 				</executions>
 			</plugin>
-      <!-- USED TO COMBAT "error: invalid target release: 1.16" -->
+      <!-- USED TO COMBAT "error: invalid target release: 1.17" -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
-          <release>16</release>
-          <source>1.16</source>
-          <target>1.16</target>
+          <release>17</release>
+          <source>1.17</source>
+          <target>1.17</target>
         </configuration>
       </plugin>
     </plugins>

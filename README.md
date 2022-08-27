@@ -43,7 +43,7 @@ all party members will be teleported when the dungeon begins.
 | `setspawnposition` | Admin command.<br>Set the SPAWN position of a dungeon.<br>A spawn position is where users will be teleported when leaving. | `setspawnposition <dungeon_name>` |
 | `setstartposition` | Admin command.<br>Set the START position of a dungeon.<br>A start position is where users will be teleported when the dungeon begins. | `setstartposition <dungeon_name>` |
 | `createscript` | Admin command.<br>Create and save a new script file.<br>Script boilerplate code will be included with this method. | `createscript <dungeon_name> <script_type>` |
-| `createworldscript` | Admin command.<br>Create and save a new WORLD script file.<br>Script boilerplate code will be included with this method. | `createscript <script_type>` |
+| `createworldscript` | Admin command.<br>Create and save a new WORLD script file.<br>Script boilerplate code will be included with this method. | `createworldscript <script_type>` |
 | `deletescript` | Admin command.<br>Delete a script in the given file path.<br>`plugins/PartyDungeons/<file_path>` will be deleted. Only `.js` files can be deleted with this method. | `deletescript <file_path>` |
 | `settings` | Admin command.<br>Change a dungeon's `max_party` and `daily_clear` values. | `settings <dungeon_name> <setting_type> [value]` |
 | `runscript` | Admin command.<br>Run a script as if you triggered it normally.<br>Try to avoid using this command. | `runscript <dungeon_name> <script_type> <script_name>` |

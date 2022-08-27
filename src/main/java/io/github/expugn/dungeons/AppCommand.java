@@ -774,7 +774,6 @@ public class AppCommand implements CommandExecutor {
         }
 
         String settingType = args[2];
-        System.out.println(args[0] + " " + args[1] + " " + args[2]);
         if (args.length < FOUR_ARGUMENTS) { // partydungeons settings <dungeon_name> <max_party/daily_clear> [value]
             // TELL USER CURRENT VALUE INSTEAD OF "Not enough arguments" MESSAGE
             switch (settingType) {
